@@ -10,7 +10,10 @@ return new class extends Migration {
             $table->uuid('id_feria')->nullable(); 
             $table->uuid('id_usuario_directiva');
             $table->decimal('total', 10, 2);
-            $table->string('estado', 20)->default('PENDIENTE'); 
+            $table->decimal('comision_cappias', 10, 2)->default(0);
+            $table->boolean('comision_calculada')->default(false);
+            $table->boolean('stock_procesado')->default(false);
+            $table->string('estado', 20)->default('PENDIENTE_PAGO');
             $table->timestamps();
 
             $table->foreign('id_feria')->references('id_feria')->on('ferias');

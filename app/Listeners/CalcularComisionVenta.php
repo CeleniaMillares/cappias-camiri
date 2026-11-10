@@ -2,19 +2,33 @@
 namespace App\Listeners;
 use App\Events\VentaConfirmada;
 use App\Models\Parametro;
+use App\Models\Venta;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CalcularComisionVenta
 {
     public function handle(VentaConfirmada $event): void
     {
-        // Obtenemos el 5% desde la base de datos (Fuente de verdad)
-        $porcentaje = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
-        
-        $venta = $event->venta;
-        $comision = ($venta->total * $porcentaje) / 100;
+        DB::transaction(function () use ($event) {
+            $venta = Venta::whereKey($event->venta->id_venta)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Lo guardamos en el log para probar que funciona
-        Log::info("Comisión calculada para Venta {$venta->id_venta}: {$comision} Bs.");
+            if ($venta->comision_calculada) {
+                Log::info("Comisión ya calculada para Venta {$venta->id_venta}");
+                return;
+            }
+
+            $porcentaje = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
+            $comision = round(((float) $venta->total * $porcentaje) / 100, 2);
+
+            $venta->update([
+                'comision_cappias' => $comision,
+                'comision_calculada' => true,
+            ]);
+
+            Log::info("Comisión calculada para Venta {$venta->id_venta}: Bs. {$comision}");
+        });
     }
 }

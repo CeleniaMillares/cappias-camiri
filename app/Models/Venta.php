@@ -18,7 +18,16 @@ class Venta extends Model
         'id_feria',
         'id_usuario_directiva',
         'total',
-        'estado'
+        'comision_cappias',
+        'comision_calculada',
+        'stock_procesado',
+        'estado',
+    ];
+
+    protected $casts = [
+        'comision_cappias' => 'decimal:2',
+        'comision_calculada' => 'boolean',
+        'stock_procesado' => 'boolean',
     ];
 
     // Relaciones

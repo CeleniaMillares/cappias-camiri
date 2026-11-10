@@ -13,6 +13,7 @@ use App\Events\VentaConfirmada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class VentaController extends Controller
@@ -63,6 +64,25 @@ class VentaController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
+                $productosAgrupados = collect($request->input('productos'))
+                    ->groupBy('id_producto')
+                    ->map(fn ($items) => $items->sum('cantidad'))
+                    ->sortKeys();
+                $productosBloqueados = collect();
+
+                foreach ($productosAgrupados as $idProducto => $cantidadTotal) {
+                    $producto = Producto::whereKey($idProducto)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    if ($producto->stock_actual < $cantidadTotal) {
+                        throw ValidationException::withMessages([
+                            'productos' => "Stock insuficiente para: {$producto->nombre}. Disponible: {$producto->stock_actual}, solicitado: {$cantidadTotal}",
+                        ]);
+                    }
+
+                    $productosBloqueados->put($idProducto, $producto);
+                }
+
                 $venta = Venta::create([
                     'id_feria' => $request->id_feria,
                     'id_usuario_directiva' => Auth::user()->id_usuario,
@@ -72,14 +92,7 @@ class VentaController extends Controller
 
                 $totalVenta = 0;
                 foreach ($request->productos as $item) {
-                    $producto = Producto::whereKey($item['id_producto'])
-                        ->lockForUpdate()
-                        ->firstOrFail();
-                    if ($producto->stock_actual < $item['cantidad']) {
-                        throw ValidationException::withMessages([
-                            'productos' => "Stock insuficiente para: {$producto->nombre}",
-                        ]);
-                    }
+                    $producto = $productosBloqueados->get($item['id_producto']);
                     $subtotal = $producto->precio * $item['cantidad'];
                     $totalVenta += $subtotal;
 
@@ -138,10 +151,19 @@ class VentaController extends Controller
 
                 if ($estadoVenta === 'PAGADA') {
                     event(new VentaConfirmada($venta));
+                } else {
+                    foreach ($productosAgrupados as $idProducto => $cantidadTotal) {
+                        $productosBloqueados->get($idProducto)->decrement('stock_actual', $cantidadTotal);
+                    }
+
+                    $venta->update(['stock_procesado' => true]);
+                    Log::info("Stock reservado para venta pendiente {$venta->id_venta}");
                 }
             });
 
             return redirect('/admin/ventas')->with('success', 'Venta registrada correctamente.');
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }

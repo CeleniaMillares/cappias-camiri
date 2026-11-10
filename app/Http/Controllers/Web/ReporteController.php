@@ -26,7 +26,7 @@ class ReporteController extends Controller
 
         $totalVentas = $ventas->sum('total');
         $porcentajeVenta = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
-        $comisionVentas = ($totalVentas * $porcentajeVenta) / 100;
+        $comisionVentas = $ventas->sum('comision_cappias');
         $netoSocios = $totalVentas - $comisionVentas;
 
         // ==========================================

@@ -48,7 +48,7 @@ class WebWorkflowTest extends TestCase
                 ],
             ])
             ->assertRedirect('/admin/ventas/crear')
-            ->assertSessionHasErrors('error');
+            ->assertSessionHasErrors('monto_efectivo');
 
         $this->assertDatabaseCount('ventas', 0);
         $this->assertSame(3, $product->fresh()->stock_actual);
