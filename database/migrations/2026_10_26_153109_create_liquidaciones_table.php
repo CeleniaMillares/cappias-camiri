@@ -13,7 +13,8 @@ return new class extends Migration {
             $table->decimal('monto_bruto', 10, 2);
             $table->decimal('comision', 10, 2);
             $table->decimal('monto_neto', 10, 2);
-            $table->string('estado', 20)->default('PENDIENTE'); 
+            $table->string('metodo', 20)->default('EFECTIVO');
+            $table->string('estado', 20)->default('PAGADA');
             $table->timestamps();
 
             $table->foreign('id_usuario_socio')->references('id_usuario')->on('usuarios');

@@ -74,6 +74,70 @@ class SocioMembresiaWorkflowTest extends TestCase
         $this->assertDatabaseCount('socios', 0);
     }
 
+    public function test_qr_membership_payments_follow_the_receipt_confirmation_checkbox(): void
+    {
+        $directiva = $this->createDirectiva();
+        Parametro::create(['clave' => 'monto_inscripcion', 'valor' => '100']);
+        Parametro::create(['clave' => 'monto_mensualidad', 'valor' => '50']);
+
+        $this->actingAs($directiva)->post('/admin/socios', [
+            'nombre' => 'Socio QR pendiente',
+            'correo' => 'socio-pendiente@example.test',
+            'contrasena' => 'password',
+            'ci' => '3333333',
+            'telefono' => '70000003',
+            'metodo_pago' => 'QR',
+        ])->assertRedirect('/admin/socios');
+
+        $this->actingAs($directiva)->post('/admin/socios', [
+            'nombre' => 'Socio QR confirmado',
+            'correo' => 'socio-confirmado@example.test',
+            'contrasena' => 'password',
+            'ci' => '4444444',
+            'telefono' => '70000004',
+            'metodo_pago' => 'QR',
+            'confirmar_qr' => '1',
+        ])->assertRedirect('/admin/socios');
+
+        $this->assertDatabaseHas('cuotas_socios', [
+            'id_socio' => Socio::where('ci', '3333333')->value('id_socio'),
+            'tipo' => 'MATRICULA',
+            'estado' => 'PENDIENTE',
+        ]);
+        $this->assertDatabaseHas('cuotas_socios', [
+            'id_socio' => Socio::where('ci', '4444444')->value('id_socio'),
+            'tipo' => 'MATRICULA',
+            'estado' => 'CONFIRMADO',
+        ]);
+
+        $socio = $this->createSocio();
+        $this->actingAs($directiva)->post("/admin/socios/{$socio->id_socio}/pago-mensual", [
+            'periodo_inicio' => '2027-01',
+            'meses' => 1,
+            'metodo_pago' => 'QR',
+        ])->assertRedirect('/admin/socios');
+
+        $this->actingAs($directiva)->post("/admin/socios/{$socio->id_socio}/pago-mensual", [
+            'periodo_inicio' => '2027-02',
+            'meses' => 1,
+            'metodo_pago' => 'QR',
+            'confirmar_qr' => '1',
+        ])->assertRedirect('/admin/socios');
+
+        $this->assertDatabaseHas('cuotas_socios', [
+            'id_socio' => $socio->id_socio,
+            'tipo' => 'MENSUALIDAD',
+            'periodo' => '2027-01',
+            'estado' => 'PENDIENTE',
+        ]);
+        $this->assertDatabaseHas('cuotas_socios', [
+            'id_socio' => $socio->id_socio,
+            'tipo' => 'MENSUALIDAD',
+            'periodo' => '2027-02',
+            'estado' => 'CONFIRMADO',
+        ]);
+    }
+
     public function test_monthly_payment_rejects_mixed_cash_above_total(): void
     {
         $directiva = $this->createDirectiva();
@@ -92,6 +156,34 @@ class SocioMembresiaWorkflowTest extends TestCase
             ->assertSessionHasErrors('monto_efectivo');
 
         $this->assertDatabaseCount('cuotas_socios', 0);
+    }
+
+    public function test_mixed_cash_is_distributed_exactly_across_three_months(): void
+    {
+        $directiva = $this->createDirectiva();
+        $socio = $this->createSocio();
+        Parametro::create(['clave' => 'monto_mensualidad', 'valor' => '50']);
+
+        $this->actingAs($directiva)
+            ->post("/admin/socios/{$socio->id_socio}/pago-mensual", [
+                'periodo_inicio' => '2027-01',
+                'meses' => 3,
+                'metodo_pago' => 'MIXTO',
+                'monto_efectivo' => 100,
+            ])
+            ->assertRedirect('/admin/socios')
+            ->assertSessionHasNoErrors();
+
+        $cuotas = CuotaSocio::where('id_socio', $socio->id_socio)
+            ->where('tipo', 'MENSUALIDAD')
+            ->orderBy('periodo')
+            ->get();
+
+        $this->assertCount(3, $cuotas);
+        $this->assertSame(100.0, $cuotas->sum(fn ($cuota) => (float) $cuota->monto_efectivo));
+        $this->assertSame([33.33, 33.33, 33.34], $cuotas
+            ->map(fn ($cuota) => (float) $cuota->monto_efectivo)
+            ->all());
     }
 
     public function test_monthly_payment_skips_existing_pending_periods(): void
@@ -193,6 +285,29 @@ class SocioMembresiaWorkflowTest extends TestCase
             ->get('/admin/mi-perfil-socio')
             ->assertOk()
             ->assertSee('MATRICULA');
+    }
+
+    public function test_members_index_renders_pending_payment_concepts_without_dynamic_array_mutation(): void
+    {
+        $directiva = $this->createDirectiva();
+        $socio = $this->createSocio();
+        CuotaSocio::create([
+            'id_socio' => $socio->id_socio,
+            'tipo' => 'MENSUALIDAD',
+            'metodo' => 'QR',
+            'estado' => 'PENDIENTE',
+            'periodo' => '2026-11',
+            'monto' => 50,
+            'monto_efectivo' => 0,
+            'fecha_pago' => '2026-11-10',
+        ]);
+
+        $this->actingAs($directiva)
+            ->get('/admin/socios')
+            ->assertOk()
+            ->assertSee('Pago pendiente de verificar')
+            ->assertSee('2026')
+            ->assertSee('QR');
     }
 
     public function test_individual_payment_confirmation_is_safe_to_repeat(): void

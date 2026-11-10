@@ -118,35 +118,34 @@ class VentaController extends Controller
                     ]);
                 }
 
+                $qrConfirmado = in_array($request->metodo_pago, ['QR', 'MIXTO'], true)
+                    && $request->boolean('confirmar_qr');
+                $estadoVenta = ($request->metodo_pago === 'EFECTIVO' || $qrConfirmado)
+                    ? 'PAGADA'
+                    : 'PENDIENTE_PAGO';
+                $estadoPago = $estadoVenta === 'PAGADA' ? 'CONFIRMADO' : 'PENDIENTE';
+
                 if ($montoEfectivo > 0) {
                     Pago::create([
                         'id_venta' => $venta->id_venta,
                         'monto' => $montoEfectivo,
                         'metodo' => 'EFECTIVO',
-                        'estado' => 'CONFIRMADO',
+                        'estado' => $estadoPago,
                     ]);
                 }
 
-                // 🔥 Si es QR y se confirma, guardamos el pago QR
-                $qrConfirmado = in_array($request->metodo_pago, ['QR', 'MIXTO'], true)
-                    && $request->boolean('confirmar_qr');
-                if ($qrConfirmado) {
+                if (in_array($request->metodo_pago, ['QR', 'MIXTO'], true)) {
                     $saldoQR = $totalVenta - $montoEfectivo;
                     if ($saldoQR > 0) {
                         Pago::create([
                             'id_venta' => $venta->id_venta,
                             'monto' => $saldoQR,
                             'metodo' => 'QR',
-                            'estado' => 'CONFIRMADO',
+                            'estado' => $estadoPago,
                         ]);
                     }
                 }
 
-                $estadoVenta = $request->metodo_pago === 'EFECTIVO'
-                    || $qrConfirmado
-                    || $montoEfectivo >= $totalVenta
-                    ? 'PAGADA'
-                    : 'PENDIENTE_PAGO';
                 $venta->update(['estado' => $estadoVenta]);
 
                 if ($estadoVenta === 'PAGADA') {
@@ -176,17 +175,28 @@ class VentaController extends Controller
                 return false;
             }
 
-            $totalPagado = Pago::where('id_venta', $venta->id_venta)->where('estado', 'CONFIRMADO')->sum('monto');
-            $saldo = $venta->total - $totalPagado;
+            $pagos = Pago::where('id_venta', $venta->id_venta)
+                ->lockForUpdate()
+                ->get();
+            $totalRegistrado = round((float) $pagos->sum('monto'), 2);
+            $saldoSinRegistrar = round((float) $venta->total - $totalRegistrado, 2);
 
-            if ($saldo > 0) {
+            if ($saldoSinRegistrar < 0) {
+                return false;
+            }
+
+            if ($saldoSinRegistrar > 0) {
                 Pago::create([
                     'id_venta' => $venta->id_venta,
-                    'monto' => $saldo,
+                    'monto' => $saldoSinRegistrar,
                     'metodo' => 'QR',
                     'estado' => 'CONFIRMADO',
                 ]);
             }
+
+            Pago::where('id_venta', $venta->id_venta)
+                ->where('estado', 'PENDIENTE')
+                ->update(['estado' => 'CONFIRMADO']);
 
             $venta->update(['estado' => 'PAGADA']);
             event(new VentaConfirmada($venta));

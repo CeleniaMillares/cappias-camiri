@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Venta;
 use App\Models\Inscripcion;
 use App\Models\Producto;
+use App\Models\CuotaSocio;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -41,10 +42,20 @@ class DashboardController extends Controller
         }
 
         // 4. SI ES DIRECTIVA (El Dashboard general con gráficos)
-        $ventasHoy = Venta::whereDate('created_at', today())->sum('total');
+        $estadosVentaPagada = ['PAGADA', 'LIQUIDADA'];
+        $ventasHoy = Venta::whereDate('created_at', today())
+            ->whereIn('estado', $estadosVentaPagada)
+            ->sum('total');
         $totalAlumnos = Inscripcion::distinct('id_alumno')->count('id_alumno');
         $productosBajoStock = Producto::whereColumn('stock_actual', '<=', 'stock_minimo')->where('activo', true)->get();
-        $ultimasVentas = Venta::with('directiva')->orderBy('created_at', 'desc')->take(5)->get();
+        $ultimasVentas = Venta::with('directiva')
+            ->whereIn('estado', $estadosVentaPagada)
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+        $comisionVentas = Venta::whereIn('estado', $estadosVentaPagada)->sum('comision_cappias');
+        $comisionCursos = Inscripcion::where('estado', 'CONFIRMADA')->sum('comision_cappias');
+        $totalMembresias = CuotaSocio::where('estado', 'CONFIRMADO')->sum('monto');
 
         // 🔥 Lógica para los gráficos (Últimos 7 días)
         $ventasSemana = [];
@@ -53,9 +64,21 @@ class DashboardController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $fecha = now()->subDays($i);
             $fechasSemana[] = $fecha->translatedFormat('D'); // Lun, Mar, Mié...
-            $ventasSemana[] = Venta::whereDate('created_at', $fecha->toDateString())->sum('total');
+            $ventasSemana[] = Venta::whereDate('created_at', $fecha->toDateString())
+                ->whereIn('estado', $estadosVentaPagada)
+                ->sum('total');
         }
 
-        return view('admin.dashboard', compact('ventasHoy', 'totalAlumnos', 'productosBajoStock', 'ultimasVentas', 'ventasSemana', 'fechasSemana'));
+        return view('admin.dashboard', compact(
+            'ventasHoy',
+            'totalAlumnos',
+            'productosBajoStock',
+            'ultimasVentas',
+            'ventasSemana',
+            'fechasSemana',
+            'comisionVentas',
+            'comisionCursos',
+            'totalMembresias'
+        ));
     }
 }

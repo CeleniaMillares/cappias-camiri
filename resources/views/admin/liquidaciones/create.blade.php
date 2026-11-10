@@ -51,14 +51,28 @@
         </div>
     </div>
 
+    @if ($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <form method="POST" action="/admin/liquidaciones/crear/{{ $socio->id_usuario }}">
             @csrf
             
             <div class="mb-6">
                 <label class="block mb-2 font-bold text-gray-700">Monto a Pagar (Bs):</label>
-                <input type="number" step="0.01" name="monto_pagar" value="{{ $saldoPendiente }}" max="{{ $saldoPendiente }}" min="0.1" class="w-full border-gray-300 p-3 rounded-lg text-lg font-bold focus:ring-blue-500 focus:border-blue-500 border" required>
+                <input type="number" step="0.01" name="monto_pagar" value="{{ old('monto_pagar', $saldoPendiente) }}" max="{{ $saldoPendiente }}" min="0.01" class="w-full border-gray-300 p-3 rounded-lg text-lg font-bold focus:ring-blue-500 focus:border-blue-500 border" required>
                 <p class="text-xs text-gray-500 mt-2">Puedes modificar este monto si vas a realizar un <b>pago parcial</b> al socio.</p>
+            </div>
+
+            <div class="mb-6">
+                <label for="metodo" class="block mb-2 font-bold text-gray-700">Método de pago:</label>
+                <select id="metodo" name="metodo" class="w-full border-gray-300 p-3 rounded-lg border" required>
+                    <option value="EFECTIVO" @selected(old('metodo', 'EFECTIVO') === 'EFECTIVO')>Efectivo</option>
+                    <option value="QR" @selected(old('metodo') === 'QR')>QR</option>
+                </select>
             </div>
 
             <button type="submit" class="bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition w-full font-bold text-lg shadow-sm" onclick="return confirm('¿Confirmas la entrega del dinero?');">

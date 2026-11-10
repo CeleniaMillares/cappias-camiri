@@ -48,6 +48,15 @@
     <canvas id="graficoVentas" height="80"></canvas>
 </div>
 
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+    <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">
+        <i class="fas fa-chart-pie text-green-500 mr-2"></i> Comisiones e Ingresos de CAPPIAS
+    </h2>
+    <div class="max-w-xl mx-auto h-80">
+        <canvas id="graficoComisiones"></canvas>
+    </div>
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Alertas de Stock (Regla de Negocio) -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -133,6 +142,31 @@
             },
             scales: {
                 y: { beginAtZero: true }
+            }
+        }
+    });
+
+    const ctxComisiones = document.getElementById('graficoComisiones').getContext('2d');
+    const graficoComisiones = new Chart(ctxComisiones, {
+        type: 'doughnut',
+        data: {
+            labels: ['Comisión de ventas', 'Comisión de cursos', 'Membresías'],
+            datasets: [{
+                data: [
+                    {{ $comisionVentas }},
+                    {{ $comisionCursos }},
+                    {{ $totalMembresias }}
+                ],
+                backgroundColor: ['#3b82f6', '#6366f1', '#f59e0b'],
+                borderColor: '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
             }
         }
     });

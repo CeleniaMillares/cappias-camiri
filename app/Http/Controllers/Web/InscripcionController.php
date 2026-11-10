@@ -84,10 +84,14 @@ class InscripcionController extends Controller
                 $inscripcion = Inscripcion::create([
                     'id_alumno' => $alumno->id_alumno,
                     'id_horario_curso' => $horario->id_horario_curso,
-                    'estado' => 'PENDIENTE_PAGO'
+                    'estado' => 'PENDIENTE_PAGO',
                 ]);
 
                 $costoCurso = $horario->curso->costo;
+                $estadoPago = ($request->metodo_pago === 'EFECTIVO' || $request->boolean('confirmar_qr'))
+                    ? 'CONFIRMADO'
+                    : 'PENDIENTE';
+
                 if ($request->metodo_pago === 'MIXTO') {
                     $montoEfectivo = (float) $request->monto_efectivo;
                     if ($montoEfectivo > $costoCurso) {
@@ -99,7 +103,7 @@ class InscripcionController extends Controller
                             'id_inscripcion' => $inscripcion->id_inscripcion,
                             'monto' => $montoEfectivo,
                             'metodo' => 'EFECTIVO',
-                            'estado' => 'PENDIENTE',
+                            'estado' => $estadoPago,
                         ]);
                     }
 
@@ -109,7 +113,7 @@ class InscripcionController extends Controller
                             'id_inscripcion' => $inscripcion->id_inscripcion,
                             'monto' => $montoQr,
                             'metodo' => 'QR',
-                            'estado' => 'PENDIENTE',
+                            'estado' => $estadoPago,
                         ]);
                     }
                 } else {
@@ -117,8 +121,13 @@ class InscripcionController extends Controller
                         'id_inscripcion' => $inscripcion->id_inscripcion,
                         'monto' => $costoCurso,
                         'metodo' => $request->metodo_pago,
-                        'estado' => 'PENDIENTE',
+                        'estado' => $estadoPago,
                     ]);
+                }
+
+                if ($estadoPago === 'CONFIRMADO') {
+                    $inscripcion->update(['estado' => 'CONFIRMADA']);
+                    event(new InscripcionConfirmada($inscripcion));
                 }
             });
 

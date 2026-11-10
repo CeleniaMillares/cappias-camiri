@@ -263,6 +263,73 @@ class InscripcionCursoWorkflowTest extends TestCase
         $this->assertDatabaseCount('inscripciones', 0);
     }
 
+    public function test_directiva_can_confirm_an_enrollment_payment_during_registration(): void
+    {
+        $directivaRole = Rol::create(['nombre' => 'Directiva']);
+        $directiva = $this->createUser('directiva@example.test');
+        $directiva->roles()->attach($directivaRole->id_rol);
+        $instructor = $this->createUser('instructor@example.test');
+        $curso = $this->createCourse($instructor);
+        $horario = $this->createSchedule($curso);
+        Event::fake([InscripcionConfirmada::class]);
+
+        $this->actingAs($directiva)
+            ->post('/admin/inscripciones', [
+                'id_horario_curso' => $horario->id_horario_curso,
+                'nombres' => 'Alumno confirmado',
+                'ci' => '12345678',
+                'telefono' => '70000000',
+                'edad' => 20,
+                'metodo_pago' => 'QR',
+                'confirmar_qr' => '1',
+            ])
+            ->assertRedirect('/admin/inscripciones')
+            ->assertSessionHasNoErrors();
+
+        $inscripcion = Inscripcion::firstOrFail();
+        $this->assertSame('CONFIRMADA', $inscripcion->estado);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcion->id_inscripcion,
+            'monto' => 100,
+            'metodo' => 'QR',
+            'estado' => 'CONFIRMADO',
+        ]);
+        Event::assertDispatched(InscripcionConfirmada::class);
+    }
+
+    public function test_directiva_registration_without_qr_confirmation_stays_pending(): void
+    {
+        $directivaRole = Rol::create(['nombre' => 'Directiva']);
+        $directiva = $this->createUser('directiva@example.test');
+        $directiva->roles()->attach($directivaRole->id_rol);
+        $instructor = $this->createUser('instructor@example.test');
+        $curso = $this->createCourse($instructor);
+        $horario = $this->createSchedule($curso);
+        Event::fake([InscripcionConfirmada::class]);
+
+        $this->actingAs($directiva)
+            ->post('/admin/inscripciones', [
+                'id_horario_curso' => $horario->id_horario_curso,
+                'nombres' => 'Alumno pendiente',
+                'ci' => '12345678',
+                'telefono' => '70000000',
+                'edad' => 20,
+                'metodo_pago' => 'QR',
+            ])
+            ->assertRedirect('/admin/inscripciones')
+            ->assertSessionHasNoErrors();
+
+        $inscripcion = Inscripcion::firstOrFail();
+        $this->assertSame('PENDIENTE_PAGO', $inscripcion->estado);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcion->id_inscripcion,
+            'monto' => 100,
+            'metodo' => 'QR',
+            'estado' => 'PENDIENTE',
+        ]);
+        Event::assertNotDispatched(InscripcionConfirmada::class);
+    }
+
     public function test_course_schedule_capacity_obeys_configured_minimum_and_maximum_on_create_and_update(): void
     {
         $directivaRole = Rol::create(['nombre' => 'Directiva']);

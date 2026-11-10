@@ -65,13 +65,31 @@
         </div>
 
         <div id="div_qr" class="mb-6 hidden bg-blue-50 p-4 rounded-lg border border-blue-200">
-            @if($qrImage)
-                <p class="font-semibold text-blue-800 mb-2">QR oficial para el pago:</p>
-                <img src="{{ asset('storage/' . $qrImage) }}" alt="QR oficial de pagos" class="max-h-64 mx-auto rounded-lg border p-2">
+            <p class="font-semibold text-blue-800 mb-2">QR oficial para el pago:</p>
+            @php
+                $qrSrc = $qrImage ? asset('storage/' . $qrImage) : null;
+            @endphp
+            @if($qrSrc)
+                <img id="qr_image" src="{{ $qrSrc }}" alt="QR oficial de pagos" class="max-h-64 mx-auto rounded-lg border p-2">
             @else
-                <p class="text-sm text-red-700">El QR oficial no está configurado.</p>
+                <div id="qr_placeholder" class="mx-auto w-40 h-40 bg-yellow-50 border-2 border-dashed border-yellow-300 rounded flex flex-col items-center justify-center text-yellow-700 p-3">
+                    <i class="fas fa-qrcode text-3xl mb-2"></i>
+                    <p class="text-[10px] font-semibold text-center">QR no configurado</p>
+                    <p class="text-[9px] text-center mt-1">Contacte al Administrador</p>
+                    <img id="qr_image" class="hidden mx-auto w-full h-full object-contain" alt="QR temporal">
+                </div>
             @endif
-            <p class="text-xs text-blue-700 mt-2">La inscripción quedará pendiente hasta que se verifique el pago.</p>
+            <label class="flex items-center justify-center gap-2 mt-3 text-sm text-gray-700">
+                <input type="checkbox" name="confirmar_qr" value="1" @checked(old('confirmar_qr'))>
+                <span>Confirmo que el pago ya fue recibido</span>
+            </label>
+            <div class="mt-4 pt-3 border-t border-blue-200 text-center">
+                <label for="qr_alternativo" class="cursor-pointer inline-block bg-white text-blue-600 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition text-xs font-semibold shadow-sm">
+                    <i class="fas fa-upload mr-1"></i> Subir QR temporal
+                </label>
+                <input type="file" id="qr_alternativo" accept="image/*" class="hidden" onchange="cambiarQR(event)">
+            </div>
+            <p class="text-xs text-blue-700 mt-2">Sin confirmar la recepción del pago, la inscripción quedará pendiente de verificación.</p>
         </div>
 
         <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 w-full font-bold shadow-sm">
@@ -96,5 +114,21 @@
         if (saldo < 0) saldo = 0;
         document.getElementById('saldo_text').textContent = 'Bs. ' + saldo.toFixed(2);
     }
+
+    function cambiarQR(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const image = document.getElementById('qr_image');
+            image.src = e.target.result;
+            image.classList.remove('hidden');
+            document.getElementById('qr_placeholder')?.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    document.addEventListener('DOMContentLoaded', actualizarPago);
 </script>
 @endsection

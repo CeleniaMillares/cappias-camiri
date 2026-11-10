@@ -38,10 +38,25 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-1">Método de Pago:</label>
-                    <select name="metodo_pago" class="w-full border p-2 rounded-lg" required>
+                    <select name="metodo_pago" id="metodo_pago" class="w-full border p-2 rounded-lg" onchange="actualizarPago()" required>
                         <option value="EFECTIVO">Efectivo (Pagar en sede)</option>
                         <option value="QR">Transferencia QR</option>
                     </select>
+                </div>
+                <div id="qr_pago" class="col-span-2 hidden mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                    <p class="font-semibold text-blue-800 mb-2">Escanea el QR oficial para realizar la transferencia:</p>
+                    @php
+                        $qrSrc = $qrImage ? asset('storage/' . $qrImage) : null;
+                    @endphp
+                    @if($qrSrc)
+                        <img src="{{ $qrSrc }}" alt="QR oficial de pagos" class="mx-auto max-h-64 rounded-lg border p-2">
+                    @else
+                        <div class="mx-auto w-40 h-40 bg-yellow-50 border-2 border-dashed border-yellow-300 rounded flex flex-col items-center justify-center text-yellow-700 p-3">
+                            <i class="fas fa-qrcode text-3xl mb-2"></i>
+                            <p class="text-[10px] font-semibold text-center">QR no configurado</p>
+                            <p class="text-[9px] text-center mt-1">Contacte al Administrador</p>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -50,5 +65,13 @@
             </button>
         </form>
     </div>
+    <script>
+        function actualizarPago() {
+            const metodo = document.getElementById('metodo_pago').value;
+            document.getElementById('qr_pago').classList.toggle('hidden', metodo !== 'QR');
+        }
+
+        document.addEventListener('DOMContentLoaded', actualizarPago);
+    </script>
 </body>
 </html>

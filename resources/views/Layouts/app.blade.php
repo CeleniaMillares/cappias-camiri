@@ -53,8 +53,8 @@
             <a href="/admin/cursos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/cursos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-chalkboard-teacher w-5 text-center"></i> Cursos
             </a>
-            <a href="/admin/inscripciones" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/inscripciones*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
-                <i class="fas fa-user-graduate w-5 text-center"></i> Inscripciones
+            <a href="/admin/alumnos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/alumnos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
+                <i class="fas fa-user-graduate w-5 text-center"></i> Alumnos
             </a>
             <a href="/admin/productos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/productos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-box-open w-5 text-center"></i> Productos
@@ -89,8 +89,8 @@
             <a href="/admin/cursos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/cursos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-chalkboard-teacher w-5 text-center"></i> Mis Cursos
             </a>
-            <a href="/admin/inscripciones" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/inscripciones*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
-                <i class="fas fa-user-graduate w-5 text-center"></i> Inscripciones
+            <a href="/admin/alumnos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/alumnos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
+                <i class="fas fa-user-graduate w-5 text-center"></i> Alumnos
             </a>
             <a href="/admin/productos" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/productos*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-box-open w-5 text-center"></i> Mis Productos

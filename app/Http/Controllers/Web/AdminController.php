@@ -10,6 +10,7 @@ use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
@@ -100,11 +101,16 @@ class AdminController extends Controller
         ]);
 
         if ($request->hasFile('qr_image')) {
+            $qrAnterior = Parametro::where('clave', 'qr_image_url')->value('valor');
             $path = $request->file('qr_image')->store('qr', 'public');
             Parametro::updateOrCreate(
                 ['clave' => 'qr_image_url'],
                 ['valor' => $path, 'descripcion' => 'Ruta de la imagen del QR de pagos']
             );
+
+            if ($qrAnterior && Storage::disk('public')->exists($qrAnterior)) {
+                Storage::disk('public')->delete($qrAnterior);
+            }
         }
         return back()->with('success', 'Imagen del QR oficial actualizada correctamente.');
     }

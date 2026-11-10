@@ -97,13 +97,21 @@
         <div id="div_qr" class="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-200 text-center hidden">
             <p class="font-bold text-blue-800 mb-2 text-sm">Escanee el QR de CAPPIAS</p>
             @php
-                $defaultQr = asset('img/qr_cappias.png');
-                $qrSrc = (isset($qrImage) && $qrImage) ? asset('storage/' . $qrImage) : $defaultQr;
+                $qrSrc = $qrImage ? asset('storage/' . $qrImage) : null;
             @endphp
-            <img id="qr_image" src="{{ $qrSrc }}" class="mx-auto w-40 h-40 object-contain border p-2 bg-white rounded shadow-sm" alt="QR CAPPIAS">
+            @if($qrSrc)
+                <img id="qr_image" src="{{ $qrSrc }}" class="mx-auto w-40 h-40 object-contain border p-2 bg-white rounded shadow-sm" alt="QR CAPPIAS">
+            @else
+                <div id="qr_placeholder" class="mx-auto w-40 h-40 bg-yellow-50 border-2 border-dashed border-yellow-300 rounded flex flex-col items-center justify-center text-yellow-700 p-3">
+                    <i class="fas fa-qrcode text-3xl mb-2"></i>
+                    <p class="text-[10px] font-semibold text-center">QR no configurado</p>
+                    <p class="text-[9px] text-center mt-1">Contacte al Administrador</p>
+                    <img id="qr_image" class="hidden mx-auto w-full h-full object-contain" alt="QR temporal">
+                </div>
+            @endif
             <label class="flex items-center justify-center gap-2 mt-4 cursor-pointer">
                 <input type="checkbox" name="confirmar_qr" value="1" class="w-5 h-5 text-blue-600 rounded">
-                <span class="font-bold text-blue-800 text-sm">Confirmo que el pago QR ya fue recibido</span>
+                <span class="font-bold text-blue-800 text-sm">Confirmo que el pago ya fue recibido</span>
             </label>
             <div class="mt-4 pt-3 border-t border-blue-200">
                 <label for="qr_alternativo" class="cursor-pointer inline-block bg-white text-blue-600 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition text-xs font-semibold shadow-sm">
@@ -198,7 +206,10 @@
         if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                document.getElementById('qr_image').src = e.target.result;
+                const image = document.getElementById('qr_image');
+                image.src = e.target.result;
+                image.classList.remove('hidden');
+                document.getElementById('qr_placeholder')?.classList.add('hidden');
             };
             reader.readAsDataURL(file);
         }

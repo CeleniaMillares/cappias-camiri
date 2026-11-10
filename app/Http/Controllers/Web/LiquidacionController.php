@@ -37,33 +37,44 @@ class LiquidacionController extends Controller
             ->when($buscar, function($q) use ($buscar) {
                 $q->where('nombre', 'LIKE', '%' . $buscar . '%');
             })->get();
-        
-        $saldos = [];
-        foreach ($socios as $socio) {
+
+        $comisionPorc = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
+        $socioIds = $socios->pluck('id_usuario');
+        $brutosPorSocio = [];
+        $pagadoPorSocio = [];
+
+        if ($socioIds->isNotEmpty()) {
             $ventas = Venta::where('estado', 'PAGADA')
-                ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $socio->id_usuario))
+                ->whereHas('detalles.producto', fn($q) => $q->whereIn('id_usuario_socio', $socioIds))
+                ->with(['detalles.producto'])
                 ->get();
-            
-            $bruto = 0;
-            foreach ($ventas as $v) {
-                foreach ($v->detalles as $d) {
-                    if ($d->producto->id_usuario_socio == $socio->id_usuario) {
-                        $bruto += $d->subtotal;
+
+            foreach ($ventas as $venta) {
+                foreach ($venta->detalles as $detalle) {
+                    $idSocio = $detalle->producto->id_usuario_socio;
+                    if ($socioIds->contains($idSocio)) {
+                        $brutosPorSocio[$idSocio] = ($brutosPorSocio[$idSocio] ?? 0) + (float) $detalle->subtotal;
                     }
                 }
             }
 
-            $comisionPorc = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
-            $netoGenerado = $bruto - ($bruto * $comisionPorc / 100);
-            
-            $netoPagado = Liquidacion::where('id_usuario_socio', $socio->id_usuario)
+            $pagadoPorSocio = Liquidacion::whereIn('id_usuario_socio', $socioIds)
                 ->where('estado', 'PAGADA')
-                ->sum('monto_neto');
+                ->selectRaw('id_usuario_socio, SUM(monto_neto) as total_pagado')
+                ->groupBy('id_usuario_socio')
+                ->pluck('total_pagado', 'id_usuario_socio')
+                ->all();
+        }
 
-            $saldo = $netoGenerado - $netoPagado;
+        $saldos = [];
+        foreach ($socios as $socio) {
+            $bruto = (float) ($brutosPorSocio[$socio->id_usuario] ?? 0);
+            $netoGenerado = round($bruto - ($bruto * $comisionPorc / 100), 2);
+            $netoPagado = (float) ($pagadoPorSocio[$socio->id_usuario] ?? 0);
+            $saldo = round($netoGenerado - $netoPagado, 2);
 
             // Solo mostramos al socio si se le debe dinero (saldo > 0.01)
-            if ($saldo > 0.01) { 
+            if ($saldo > 0) {
                 $saldos[] = [
                     'socio' => $socio,
                     'saldo' => $saldo
@@ -73,7 +84,7 @@ class LiquidacionController extends Controller
 
         // 2. Historial de pagos realizados (Filtrable por socio y por fechas)
         $historial = Liquidacion::with('socio')
-            ->where('estado', 'PAGADA')
+            ->whereIn('estado', ['PAGADA', 'ANULADA'])
             ->when($buscar, function($q) use ($buscar) {
                 $q->whereHas('socio', function($q2) use ($buscar) {
                     $q2->where('nombre', 'LIKE', '%' . $buscar . '%');
@@ -98,7 +109,7 @@ class LiquidacionController extends Controller
         // Obtenemos las ventas pagadas que incluyen productos del socio
         $ventas = Venta::where('estado', 'PAGADA')
             ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $id_usuario_socio))
-            ->with('detalles.producto')->get();
+            ->with(['detalles.producto'])->get();
 
         $bruto = 0;
         foreach ($ventas as $v) {
@@ -116,7 +127,7 @@ class LiquidacionController extends Controller
             ->where('estado', 'PAGADA')
             ->sum('monto_neto');
 
-        $saldoPendiente = $netoGenerado - $netoPagado;
+        $saldoPendiente = round($netoGenerado - $netoPagado, 2);
 
         return view('admin.liquidaciones.create', compact('socio', 'saldoPendiente', 'ventas', 'bruto', 'comisionPorc', 'netoGenerado'));
     }
@@ -124,41 +135,49 @@ class LiquidacionController extends Controller
     // 3. Guardar el pago (parcial o total)
     public function store(Request $request, $id_usuario_socio) {
         $request->validate([
-            'monto_pagar' => 'required|numeric|min:0.1'
+            'monto_pagar' => 'required|numeric|decimal:0,2|min:0.01',
+            'metodo' => 'required|in:EFECTIVO,QR',
         ]);
 
-        $socio = Usuario::findOrFail($id_usuario_socio);
+        $resultado = DB::transaction(function () use ($request, $id_usuario_socio) {
+            $socio = Usuario::whereKey($id_usuario_socio)->lockForUpdate()->firstOrFail();
+            $ventas = Venta::where('estado', 'PAGADA')
+                ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $socio->id_usuario))
+                ->with(['detalles.producto'])
+                ->lockForUpdate()
+                ->get();
 
-        // Recalculamos el saldo en el servidor por seguridad (evita que alteren el HTML)
-        $ventas = Venta::where('estado', 'PAGADA')
-            ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $id_usuario_socio))->get();
-        
-        $bruto = 0;
-        foreach ($ventas as $v) {
-            foreach ($v->detalles as $d) {
-                if ($d->producto->id_usuario_socio == $id_usuario_socio) {
-                    $bruto += $d->subtotal;
+            $bruto = 0;
+            foreach ($ventas as $venta) {
+                foreach ($venta->detalles as $detalle) {
+                    if ($detalle->producto->id_usuario_socio === $socio->id_usuario) {
+                        $bruto += (float) $detalle->subtotal;
+                    }
                 }
             }
-        }
 
-        $comisionPorc = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
-        $netoGenerado = $bruto - ($bruto * $comisionPorc / 100);
-        
-        $netoPagado = Liquidacion::where('id_usuario_socio', $id_usuario_socio)->where('estado', 'PAGADA')->sum('monto_neto');
-        $saldoPendiente = $netoGenerado - $netoPagado;
+            $comisionPorc = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
+            if ($comisionPorc < 0 || $comisionPorc >= 100) {
+                throw new \LogicException('El porcentaje de comisión de ventas debe ser mayor o igual a 0 y menor a 100.');
+            }
 
-        // Validación: no puede pagar más de lo que se le debe
-        if ($request->monto_pagar > $saldoPendiente + 0.01) {
-            return back()->withErrors(['monto_pagar' => 'El monto a pagar no puede ser mayor al saldo pendiente (Bs. ' . number_format($saldoPendiente, 2) . ')']);
-        }
+            $netoGenerado = round($bruto - ($bruto * $comisionPorc / 100), 2);
+            $netoPagado = (float) Liquidacion::where('id_usuario_socio', $socio->id_usuario)
+                ->where('estado', 'PAGADA')
+                ->sum('monto_neto');
+            $saldoPendiente = round($netoGenerado - $netoPagado, 2);
+            $montoNetoAbono = round((float) $request->monto_pagar, 2);
 
-        DB::transaction(function () use ($request, $socio, $comisionPorc, $netoGenerado, $saldoPendiente) {
-            
-            // Calculamos el bruto y comisión proporcional solo para el monto que se está abonando hoy
-            $montoNetoAbono = $request->monto_pagar;
-            $montoBrutoAbono = $montoNetoAbono / (1 - ($comisionPorc / 100));
-            $comisionAbono = $montoBrutoAbono - $montoNetoAbono;
+            if ($montoNetoAbono > $saldoPendiente) {
+                return ['saldo' => $saldoPendiente];
+            }
+
+            if ($saldoPendiente <= 0) {
+                return ['saldo' => $saldoPendiente];
+            }
+
+            $montoBrutoAbono = round($montoNetoAbono / (1 - ($comisionPorc / 100)), 2);
+            $comisionAbono = round($montoBrutoAbono - $montoNetoAbono, 2);
 
             // Registramos el abono en la tabla de liquidaciones
             Liquidacion::create([
@@ -168,17 +187,38 @@ class LiquidacionController extends Controller
                 'monto_bruto' => $montoBrutoAbono,
                 'comision' => $comisionAbono,
                 'monto_neto' => $montoNetoAbono,
+                'metodo' => $request->metodo,
                 'estado' => 'PAGADA',
             ]);
 
-            // Si con este abono se cubre el 100% del saldo, marcamos las ventas como LIQUIDADAS
-            if ($request->monto_pagar >= $saldoPendiente - 0.01) {
-                Venta::where('estado', 'PAGADA')
-                    ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $socio->id_usuario))
-                    ->update(['estado' => 'LIQUIDADA']);
-            }
+            return ['saldo' => null];
         });
 
+        if ($resultado['saldo'] !== null) {
+            return back()->withErrors([
+                'monto_pagar' => 'El monto no puede ser mayor al saldo pendiente. Saldo actual: Bs. '
+                    . number_format(max(0, $resultado['saldo']), 2),
+            ])->withInput();
+        }
+
         return redirect('/admin/liquidaciones')->with('success', 'Pago registrado correctamente.');
+    }
+
+    public function anular($id) {
+        $anulada = DB::transaction(function () use ($id) {
+            $liquidacion = Liquidacion::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ($liquidacion->estado !== 'PAGADA') {
+                return false;
+            }
+
+            $liquidacion->update(['estado' => 'ANULADA']);
+            return true;
+        });
+
+        if (!$anulada) {
+            return back()->with('error', 'Solo se pueden anular liquidaciones pagadas.');
+        }
+
+        return back()->with('success', 'Liquidación anulada correctamente.');
     }
 }

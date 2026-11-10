@@ -39,31 +39,40 @@ class SocioController extends Controller
                 ->where('estado', 'CONFIRMADO')
                 ->exists();
 
-            $socio->cuotasPendientes = $socio->cuotas()
+            $cuotasPendientes = $socio->cuotas()
                 ->where('estado', 'PENDIENTE')
                 ->get();
-            $socio->totalPendiente = $socio->cuotasPendientes
+            $socio->cuotasPendientes = $cuotasPendientes;
+            $socio->totalPendiente = $cuotasPendientes
                 ->sum(fn ($cuota) => $cuota->monto - $cuota->monto_efectivo);
-            $socio->totalAbonado = $socio->cuotasPendientes->sum('monto_efectivo');
-            $socio->conceptosPendientes = [];
+            $socio->totalAbonado = $cuotasPendientes->sum('monto_efectivo');
+            $conceptos = [];
+            $metodos = [];
+            $periodosPendientes = [];
 
-            if ($socio->cuotasPendientes->contains('tipo', 'MATRICULA')) {
-                $socio->conceptosPendientes[] = 'Matrícula';
+            foreach ($cuotasPendientes as $cuota) {
+                if ($cuota->tipo === 'MATRICULA' && !in_array('Matrícula', $conceptos, true)) {
+                    $conceptos[] = 'Matrícula';
+                }
+
+                if ($cuota->tipo === 'MENSUALIDAD' && $cuota->periodo) {
+                    $periodosPendientes[] = $cuota->periodo;
+                }
+
+                if (!in_array($cuota->metodo, $metodos, true)) {
+                    $metodos[] = $cuota->metodo;
+                }
             }
 
-            $periodosPendientes = $socio->cuotasPendientes
-                ->where('tipo', 'MENSUALIDAD')
-                ->pluck('periodo')
-                ->filter()
-                ->unique()
-                ->sort()
-                ->values();
-
+            $periodosPendientes = collect($periodosPendientes)->unique()->sort()->values();
             foreach ($periodosPendientes as $periodo) {
-                $socio->conceptosPendientes[] = ucfirst(
+                $conceptos[] = ucfirst(
                     Carbon::createFromFormat('Y-m', $periodo)->translatedFormat('F Y')
                 );
             }
+
+            $socio->conceptosPendientes = $conceptos;
+            $socio->metodosPendientes = $metodos;
         }
 
         return view('admin.socios.index', compact('socios', 'buscar'));
@@ -114,10 +123,9 @@ class SocioController extends Controller
                 'estado' => 'ACTIVO'
             ]);
 
-            $estado = 'PENDIENTE';
-            if ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr')) {
-                $estado = 'CONFIRMADO';
-            }
+            $estado = ($request->metodo_pago === 'EFECTIVO' || $request->boolean('confirmar_qr'))
+                ? 'CONFIRMADO'
+                : 'PENDIENTE';
 
             $montoEfectivo = match ($request->metodo_pago) {
                 'EFECTIVO' => $montoInscripcion,
@@ -227,7 +235,7 @@ class SocioController extends Controller
             ]);
         }
         
-        $esPagoConfirmado = ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr'));
+        $esPagoConfirmado = ($request->metodo_pago === 'EFECTIVO' || $request->boolean('confirmar_qr'));
         $estado = $esPagoConfirmado ? 'CONFIRMADO' : 'PENDIENTE';
         $fechaInicio = Carbon::createFromFormat('Y-m', $request->periodo_inicio)->startOfMonth();
         
@@ -238,12 +246,14 @@ class SocioController extends Controller
         } elseif ($request->metodo_pago === 'EFECTIVO') {
             $efectivoTotal = $montoMensualidad * $meses;
         }
-        // El efectivo se distribuye equitativamente entre los meses que se van a crear
+        $efectivoTotalCentavos = (int) round($efectivoTotal * 100);
+        $efectivoPorMesCentavos = intdiv($efectivoTotalCentavos, $meses);
+        $efectivoRestanteCentavos = $efectivoTotalCentavos;
         
         $creados = [];
         $saltados = [];
 
-        DB::transaction(function () use ($socio, $fechaInicio, $meses, $montoMensualidad, $request, $estado, $efectivoTotal, &$creados, &$saltados) {
+        DB::transaction(function () use ($socio, $fechaInicio, $meses, $montoMensualidad, $request, $estado, $efectivoPorMesCentavos, &$efectivoRestanteCentavos, &$creados, &$saltados) {
             $cursor = $fechaInicio->copy();
             $contador = 0;
             
@@ -258,13 +268,11 @@ class SocioController extends Controller
                 if ($existe) {
                     $saltados[] = $periodoActual;
                 } else {
-                    // Distribuir el efectivo entre los meses restantes
-                    $efectivoPorMes = 0;
-                    if ($efectivoTotal > 0) {
-                        $efectivoPorMes = min($efectivoTotal / $meses, $montoMensualidad);
-                        $efectivoTotal -= $efectivoPorMes;
-                    }
-                    
+                    $efectivoMesActualCentavos = $contador === $meses - 1
+                        ? $efectivoRestanteCentavos
+                        : min($efectivoPorMesCentavos, $efectivoRestanteCentavos);
+                    $efectivoRestanteCentavos -= $efectivoMesActualCentavos;
+
                     CuotaSocio::create([
                         'id_socio' => $socio->id_socio,
                         'tipo' => 'MENSUALIDAD',
@@ -272,7 +280,7 @@ class SocioController extends Controller
                         'estado' => $estado,
                         'periodo' => $periodoActual,
                         'monto' => $montoMensualidad,
-                        'monto_efectivo' => $efectivoPorMes, // 🔥 Guardamos el efectivo
+                        'monto_efectivo' => $efectivoMesActualCentavos / 100,
                         'fecha_pago' => now()->toDateString(),
                     ]);
                     $creados[] = $periodoActual;

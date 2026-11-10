@@ -8,6 +8,12 @@
     </div>
 </div>
 
+@if ($errors->any())
+    <div class="bg-red-100 border border-red-300 text-red-700 p-4 rounded-lg mb-6" role="alert">
+        {{ $errors->first() }}
+    </div>
+@endif
+
 <!-- Filtro de Fechas -->
 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-8">
     <form method="GET" action="/admin/reportes" class="flex flex-wrap gap-4 items-end justify-between">
@@ -35,6 +41,14 @@
         </div>
     </form>
 </div>
+
+@if($ventas->isEmpty() && $totalCursos == 0 && $totalMembresias == 0)
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center mb-8">
+        <i class="fas fa-search text-4xl text-blue-400 mb-3"></i>
+        <p class="text-lg font-bold text-blue-800">No hay datos en el periodo seleccionado</p>
+        <p class="text-sm text-blue-600">Intenta con un rango de fechas diferente.</p>
+    </div>
+@endif
 
 <!-- RESUMEN GLOBAL -->
 <div class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 mb-8 text-white flex justify-between items-center">

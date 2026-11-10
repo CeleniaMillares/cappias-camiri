@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\LoginController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\CursoController;
 use App\Http\Controllers\Web\InscripcionController;
+use App\Http\Controllers\Web\AlumnoController;
 use App\Http\Controllers\Web\ProductoController;
 use App\Http\Controllers\Web\VentaController;
 use App\Http\Controllers\Web\LiquidacionController;
@@ -102,6 +103,13 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:Directiva,Socio/Instructor')->group(function () {
+        Route::get('/alumnos', [AlumnoController::class, 'index']);
+        Route::get('/alumnos/inscribir', [AlumnoController::class, 'create']);
+        Route::post('/alumnos/inscribir', [AlumnoController::class, 'store']);
+        Route::get('/alumnos/{id}/editar', [AlumnoController::class, 'edit']);
+        Route::put('/alumnos/{id}', [AlumnoController::class, 'update']);
+        Route::get('/alumnos/{id}/historial', [AlumnoController::class, 'historial']);
+
         // Listados
         Route::get('/cursos', [CursoController::class, 'index']);
         Route::get('/productos', [ProductoController::class, 'index']);
@@ -184,6 +192,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         // --- Pagos a Socios (Liquidaciones) ---
         Route::get('/liquidaciones/crear/{id_usuario_socio}', [LiquidacionController::class, 'create']);
         Route::post('/liquidaciones/crear/{id_usuario_socio}', [LiquidacionController::class, 'store']);
+        Route::post('/liquidaciones/{id}/anular', [LiquidacionController::class, 'anular']);
 
         // --- Reportes ---
         Route::get('/reportes', [ReporteController::class, 'index']);

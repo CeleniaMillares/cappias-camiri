@@ -11,6 +11,11 @@
         <i class="fas fa-check-circle mr-2"></i> {{ session('success') }}
     </div>
 @endif
+@if(session('error'))
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 shadow-sm">
+        <i class="fas fa-exclamation-circle mr-2"></i> {{ session('error') }}
+    </div>
+@endif
 
 <!-- 🔍 BARRA DE FILTROS (Socio, Fecha Inicio, Fecha Fin) -->
 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
@@ -109,7 +114,9 @@
                         <th class="p-4">Fecha</th>
                         <th class="p-4">Socio</th>
                         <th class="p-4">Monto Pagado</th>
+                        <th class="p-4">Método</th>
                         <th class="p-4 text-center">Estado</th>
+                        <th class="p-4 text-center">Acción</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -127,13 +134,31 @@
                         <td class="p-4 font-bold text-green-600">
                             Bs. {{ number_format($pago->monto_neto, 2) }}
                         </td>
+                        <td class="p-4 text-xs">{{ $pago->metodo ?? 'No especificado' }}</td>
                         <td class="p-4 text-center">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Pagado</span>
+                            @if($pago->estado === 'ANULADA')
+                                <span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Anulada</span>
+                            @else
+                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Pagada</span>
+                            @endif
+                        </td>
+                        <td class="p-4 text-center">
+                            @if($pago->estado === 'PAGADA')
+                                <form method="POST" action="/admin/liquidaciones/{{ $pago->id_liquidacion }}/anular"
+                                      onsubmit="return confirm('¿Confirmas anular esta liquidación? El saldo volverá a estar pendiente.');">
+                                    @csrf
+                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-semibold">
+                                        Anular
+                                    </button>
+                                </form>
+                            @else
+                                <span class="text-gray-400 text-xs">—</span>
+                            @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="p-8 text-center text-gray-500">
+                        <td colspan="6" class="p-8 text-center text-gray-500">
                             <i class="fas fa-receipt text-3xl text-gray-300 mb-2 block"></i>
                             No hay pagos registrados en este periodo.
                         </td>
