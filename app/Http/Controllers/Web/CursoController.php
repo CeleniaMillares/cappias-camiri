@@ -147,10 +147,14 @@ class CursoController extends Controller
     // 🔥 MÉTODO QUE FALTABA: Mostrar alumnos inscritos
     // Mostrar los alumnos inscritos en un curso específico
     public function showAlumnos($id_curso) {
-        // Cargamos el curso con sus horarios e inscripciones (solo de ese curso)
-        $curso = Curso::with(['horarios.inscripciones.alumno'])->findOrFail($id_curso);
-        
-            
+        $curso = Curso::with(['horarios.inscripciones.alumno', 'horarios.inscripciones.pagos'])
+            ->findOrFail($id_curso);
+
+        $user = Auth::user();
+        if ($user->hasRole('Socio/Instructor') && $curso->id_usuario_instructor !== $user->id_usuario) {
+            abort(403);
+        }
+
         return view('admin.cursos.alumnos', compact('curso'));
     }
 }

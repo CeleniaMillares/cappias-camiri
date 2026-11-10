@@ -52,7 +52,7 @@
         <div class="mb-4">
             <label class="block mb-2 font-semibold text-gray-700">Seleccione el método:</label>
             <select name="metodo_pago" id="metodo_pago" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" onchange="actualizarPago()" required>
-                <option value="EFECTIVO">Efectivo (Pago inmediato)</option>
+                <option value="EFECTIVO">Efectivo (presencial)</option>
                 <option value="QR">Pago QR (Transferencia)</option>
                 <option value="MIXTO">Pago Mixto (Efectivo + QR)</option>
             </select>
@@ -64,12 +64,14 @@
             <p class="text-sm text-yellow-700 mt-1">Saldo por QR: <b id="saldo_text">Bs. 0.00</b></p>
         </div>
 
-        <div id="div_confirmar_qr" class="mb-6 hidden bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <label class="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" name="confirmar_qr" value="1" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
-                <span class="font-bold text-blue-800">Confirmo que el pago QR ya fue recibido</span>
-            </label>
-            <p class="text-xs text-blue-600 mt-1 ml-8">Si lo marca, la inscripción se confirmará de inmediato.</p>
+        <div id="div_qr" class="mb-6 hidden bg-blue-50 p-4 rounded-lg border border-blue-200">
+            @if($qrImage)
+                <p class="font-semibold text-blue-800 mb-2">QR oficial para el pago:</p>
+                <img src="{{ asset('storage/' . $qrImage) }}" alt="QR oficial de pagos" class="max-h-64 mx-auto rounded-lg border p-2">
+            @else
+                <p class="text-sm text-red-700">El QR oficial no está configurado.</p>
+            @endif
+            <p class="text-xs text-blue-700 mt-2">La inscripción quedará pendiente hasta que se verifique el pago.</p>
         </div>
 
         <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 w-full font-bold shadow-sm">
@@ -84,7 +86,7 @@
     function actualizarPago() {
         const metodo = document.getElementById('metodo_pago').value;
         document.getElementById('div_mixto').classList.toggle('hidden', metodo !== 'MIXTO');
-        document.getElementById('div_confirmar_qr').classList.toggle('hidden', metodo === 'EFECTIVO');
+        document.getElementById('div_qr').classList.toggle('hidden', metodo === 'EFECTIVO');
         calcularSaldo();
     }
 

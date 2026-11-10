@@ -21,7 +21,7 @@ class ParametroSeeder extends Seeder
         ];
 
         foreach ($parametros as $parametro) {
-            Parametro::create($parametro);
+            Parametro::updateOrCreate(['clave' => $parametro['clave']], $parametro);
         }
     }
 }

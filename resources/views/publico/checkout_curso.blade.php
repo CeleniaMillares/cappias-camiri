@@ -19,6 +19,11 @@
             </div>
         @endif
 
+        @if($curso->horarios->isEmpty())
+            <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg">
+                Este curso no tiene horarios disponibles para inscripción.
+            </div>
+        @else
         <form method="POST" action="/checkout/curso/{{ $curso->id_curso }}">
             @csrf
             <input type="hidden" name="id_horario_curso" value="{{ $curso->horarios->first()->id_horario_curso }}">
@@ -47,17 +52,34 @@
                 </div>
                 <div class="col-span-2">
                     <label class="block text-sm font-semibold mb-1">Método de Pago:</label>
-                    <select name="metodo_pago" class="w-full border p-2 rounded-lg" required>
-                        <option value="EFECTIVO">Efectivo (Pagar en sede)</option>
-                        <option value="QR">Transferencia QR</option>
+                    <select name="metodo_pago" id="metodo_pago" class="w-full border p-2 rounded-lg" onchange="mostrarQr()" required>
+                        <option value="EFECTIVO" @selected(old('metodo_pago') === 'EFECTIVO')>Efectivo (pago presencial)</option>
+                        <option value="QR" @selected(old('metodo_pago') === 'QR') @disabled(empty($qrImage))>Transferencia QR</option>
                     </select>
+                </div>
+                <div id="qr_pago" class="col-span-2 {{ old('metodo_pago') === 'QR' ? '' : 'hidden' }}">
+                    @if($qrImage)
+                        <p class="font-semibold text-gray-700 mb-2">Escanea el QR oficial para realizar la transferencia:</p>
+                        <img src="{{ asset('storage/' . $qrImage) }}" alt="QR oficial de pagos" class="mx-auto max-h-64 rounded-lg border p-2">
+                        <p class="text-sm text-gray-600 mt-2">La Directiva verificará la transferencia antes de confirmar tu cupo.</p>
+                    @else
+                        <p class="text-sm text-red-700 bg-red-50 p-3 rounded-lg">El QR oficial todavía no está configurado. Selecciona efectivo o comunícate con la Directiva.</p>
+                    @endif
                 </div>
             </div>
 
             <button type="submit" class="bg-blue-600 text-white w-full py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
-                <i class="fas fa-check-circle mr-2"></i> Confirmar Inscripción
+                <i class="fas fa-check-circle mr-2"></i> Registrar Inscripción
             </button>
         </form>
+        @endif
     </div>
+    <script>
+        function mostrarQr() {
+            const metodo = document.getElementById('metodo_pago').value;
+            document.getElementById('qr_pago').classList.toggle('hidden', metodo !== 'QR');
+        }
+        document.addEventListener('DOMContentLoaded', mostrarQr);
+    </script>
 </body>
 </html>

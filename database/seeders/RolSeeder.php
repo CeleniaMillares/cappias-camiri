@@ -18,7 +18,7 @@ class RolSeeder extends Seeder
         ];
 
         foreach ($roles as $rol) {
-            Rol::create($rol);
+            Rol::updateOrCreate(['nombre' => $rol['nombre']], $rol);
         }
     }
 }

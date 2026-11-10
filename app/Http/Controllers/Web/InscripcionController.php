@@ -18,7 +18,7 @@ class InscripcionController extends Controller
     public function index() {
         /** @var \App\Models\Usuario $user */
         $user = Auth::user();
-        $query = Inscripcion::with(['alumno', 'horarioCurso.curso']);
+        $query = Inscripcion::with(['alumno', 'horarioCurso.curso', 'pagos']);
 
         if ($user->hasRole('Alumno')) {
             $query->whereHas('alumno', fn($q) => $q->where('nombres', 'LIKE', '%' . $user->nombre . '%'));
@@ -55,7 +55,9 @@ class InscripcionController extends Controller
                     ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => $request->edad]
                 );
 
-                $horario = HorarioCurso::with('curso')->findOrFail($request->id_horario_curso);
+                $horario = HorarioCurso::with('curso')
+                    ->lockForUpdate()
+                    ->findOrFail($request->id_horario_curso);
 
                 $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
                     ->where('id_horario_curso', $horario->id_horario_curso)->exists();
@@ -64,47 +66,44 @@ class InscripcionController extends Controller
                 $inscritos = Inscripcion::where('id_horario_curso', $horario->id_horario_curso)->count();
                 if ($inscritos >= $horario->cupo_maximo) throw new \Exception('El cupo máximo para este horario está lleno.');
 
-                $estadoInscripcion = 'PENDIENTE_PAGO';
-                if ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr')) {
-                    $estadoInscripcion = 'CONFIRMADA';
-                }
-
                 $inscripcion = Inscripcion::create([
                     'id_alumno' => $alumno->id_alumno,
                     'id_horario_curso' => $horario->id_horario_curso,
-                    'estado' => $estadoInscripcion
+                    'estado' => 'PENDIENTE_PAGO'
                 ]);
 
-                // 🔥 REGISTRO DE PAGOS
                 $costoCurso = $horario->curso->costo;
-                $montoEfectivo = 0;
-                if ($request->metodo_pago === 'EFECTIVO') { $montoEfectivo = $costoCurso; }
-                elseif ($request->metodo_pago === 'MIXTO') { $montoEfectivo = $request->monto_efectivo; }
+                if ($request->metodo_pago === 'MIXTO') {
+                    $montoEfectivo = (float) $request->monto_efectivo;
+                    if ($montoEfectivo > $costoCurso) {
+                        throw new \RuntimeException('El monto en efectivo no puede superar el costo del curso.');
+                    }
 
-                if ($montoEfectivo > 0) {
-                    Pago::create([
-                        'id_inscripcion' => $inscripcion->id_inscripcion,
-                        'monto' => $montoEfectivo,
-                        'metodo' => 'EFECTIVO',
-                        'estado' => 'CONFIRMADO',
-                    ]);
-                }
-
-                // 🔥 Si es QR y se confirma, guardamos el pago QR
-                if (in_array($request->metodo_pago, ['QR', 'MIXTO']) && $request->has('confirmar_qr')) {
-                    $saldoQR = $costoCurso - $montoEfectivo;
-                    if ($saldoQR > 0) {
+                    if ($montoEfectivo > 0) {
                         Pago::create([
                             'id_inscripcion' => $inscripcion->id_inscripcion,
-                            'monto' => $saldoQR,
-                            'metodo' => 'QR',
-                            'estado' => 'CONFIRMADO',
+                            'monto' => $montoEfectivo,
+                            'metodo' => 'EFECTIVO',
+                            'estado' => 'PENDIENTE',
                         ]);
                     }
-                }
 
-                if ($estadoInscripcion === 'CONFIRMADA') {
-                    event(new InscripcionConfirmada($inscripcion));
+                    $montoQr = $costoCurso - $montoEfectivo;
+                    if ($montoQr > 0) {
+                        Pago::create([
+                            'id_inscripcion' => $inscripcion->id_inscripcion,
+                            'monto' => $montoQr,
+                            'metodo' => 'QR',
+                            'estado' => 'PENDIENTE',
+                        ]);
+                    }
+                } else {
+                    Pago::create([
+                        'id_inscripcion' => $inscripcion->id_inscripcion,
+                        'monto' => $costoCurso,
+                        'metodo' => $request->metodo_pago,
+                        'estado' => 'PENDIENTE',
+                    ]);
                 }
             });
 
@@ -115,26 +114,41 @@ class InscripcionController extends Controller
     }
 
     public function confirmar($id) {
-        $inscripcion = Inscripcion::findOrFail($id);
-        if ($inscripcion->estado === 'CONFIRMADA') return back()->with('error', 'La inscripción ya está confirmada.');
-
-        DB::transaction(function () use ($inscripcion) {
-            $costoCurso = $inscripcion->horarioCurso->curso->costo;
-            $totalPagado = Pago::where('id_inscripcion', $inscripcion->id_inscripcion)->where('estado', 'CONFIRMADO')->sum('monto');
-            $saldo = $costoCurso - $totalPagado;
-
-            if ($saldo > 0) {
-                Pago::create([
-                    'id_inscripcion' => $inscripcion->id_inscripcion,
-                    'monto' => $saldo,
-                    'metodo' => 'QR',
-                    'estado' => 'CONFIRMADO',
-                ]);
+        $resultado = DB::transaction(function () use ($id) {
+            $inscripcion = Inscripcion::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ($inscripcion->estado === 'CONFIRMADA') {
+                return 'ya_confirmada';
             }
 
+            $costoCurso = $inscripcion->horarioCurso->curso->costo;
+            $pagos = Pago::where('id_inscripcion', $inscripcion->id_inscripcion)
+                ->lockForUpdate()
+                ->get();
+            $totalRegistrado = round((float) $pagos->sum('monto'), 2);
+
+            if ($totalRegistrado !== round((float) $costoCurso, 2)) {
+                return 'monto_invalido';
+            }
+
+            $pagosPendientes = $pagos->where('estado', 'PENDIENTE');
+            if ($pagosPendientes->isEmpty()) {
+                return 'sin_pagos_pendientes';
+            }
+
+            Pago::whereIn('id_pago', $pagosPendientes->pluck('id_pago'))
+                ->update(['estado' => 'CONFIRMADO']);
             $inscripcion->update(['estado' => 'CONFIRMADA']);
             event(new InscripcionConfirmada($inscripcion));
+            return 'confirmada';
         });
+
+        if ($resultado === 'ya_confirmada') {
+            return back()->with('error', 'La inscripción ya está confirmada.');
+        }
+
+        if ($resultado === 'monto_invalido' || $resultado === 'sin_pagos_pendientes') {
+            return back()->with('error', 'No se puede confirmar: revisa los pagos registrados de esta inscripción.');
+        }
 
         return redirect('/admin/inscripciones')->with('success', 'Pago confirmado. Comisión calculada.');
     }

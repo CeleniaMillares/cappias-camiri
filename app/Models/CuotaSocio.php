@@ -13,8 +13,7 @@ class CuotaSocio extends Model
     public $incrementing = false;
     protected $keyType = 'string';
     
-    protected $fillable = ['id_socio', 'tipo', 'metodo', 'estado', 'periodo', 'monto', 'fecha_pago'];
-
+    protected $fillable = ['id_socio', 'tipo', 'metodo', 'estado', 'periodo', 'monto', 'monto_efectivo', 'fecha_pago'];
     public function socio() {
         return $this->belongsTo(Socio::class, 'id_socio', 'id_socio');
     }

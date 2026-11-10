@@ -13,14 +13,15 @@ use App\Models\Producto;
 use App\Models\Venta;
 use App\Models\DetalleVenta;
 use App\Models\Pago;
+use App\Models\Parametro;
 use App\Events\VentaConfirmada;
-use App\Events\InscripcionConfirmada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Password; // Para enviar correo de restablecer contraseña
+use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
@@ -29,7 +30,7 @@ class CheckoutController extends Controller
     // ==========================================
     public function createCurso($id_curso) {
         $curso = Curso::with('horarios')->findOrFail($id_curso);
-        $qrImage = \App\Models\Parametro::where('clave', 'qr_image_url')->value('valor');
+        $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
         
         return view('publico.checkout_curso', compact('curso', 'qrImage'));
     }
@@ -54,10 +55,20 @@ class CheckoutController extends Controller
             }
         }
 
-        DB::transaction(function () use ($request, $id_curso, &$usuario) {
+        $nuevoUsuario = false;
+        DB::transaction(function () use ($request, $id_curso, &$usuario, &$nuevoUsuario) {
+            $horario = HorarioCurso::with('curso')
+                ->lockForUpdate()
+                ->findOrFail($request->id_horario_curso);
+            abort_unless((string) $horario->id_curso === (string) $id_curso, 404);
+
             // 1. Si el usuario NO existe, lo creamos automáticamente como Alumno
             if (!$usuario) {
                 $rolAlumno = Rol::where('nombre', 'Alumno')->first();
+                if (!$rolAlumno) {
+                    throw new \RuntimeException('No existe el rol Alumno para registrar la inscripcion.');
+                }
+
                 $passwordTemporal = Str::random(8); // Generamos contraseña temporal
 
                 $usuario = Usuario::create([
@@ -67,10 +78,7 @@ class CheckoutController extends Controller
                     'activo' => true,
                 ]);
                 $usuario->roles()->attach($rolAlumno->id_rol);
-
-                // Enviar correo de bienvenida con enlace para crear contraseña
-                // (Esto usa el sistema de recuperación de contraseña nativo de Laravel)
-                Password::sendResetLink(['correo' => $usuario->correo]);
+                $nuevoUsuario = true;
             }
 
             // 2. Buscar o crear el Alumno
@@ -79,35 +87,46 @@ class CheckoutController extends Controller
                 ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => 18] // Edad por defecto o pedirla
             );
 
-            $horario = HorarioCurso::with('curso')->findOrFail($request->id_horario_curso);
+            $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
+                ->where('id_horario_curso', $horario->id_horario_curso)
+                ->exists();
+            if ($yaInscrito) {
+                throw ValidationException::withMessages([
+                    'id_horario_curso' => 'Este alumno ya está inscrito en este horario.',
+                ]);
+            }
             
             // Verificar cupo
             $inscritos = Inscripcion::where('id_horario_curso', $horario->id_horario_curso)->count();
             if ($inscritos >= $horario->cupo_maximo) {
-                throw new \Exception('El cupo está lleno.');
+                throw ValidationException::withMessages([
+                    'id_horario_curso' => 'El cupo para este horario está lleno.',
+                ]);
             }
 
-            // 3. Crear la inscripción (Pendiente o Confirmada según pago)
-            $estado = ($request->metodo_pago === 'EFECTIVO') ? 'CONFIRMADA' : 'PENDIENTE_PAGO';
+            // Todas las inscripciones esperan la verificación de la Directiva.
             $inscripcion = Inscripcion::create([
                 'id_alumno' => $alumno->id_alumno,
                 'id_horario_curso' => $horario->id_horario_curso,
-                'estado' => $estado,
+                'estado' => 'PENDIENTE_PAGO',
             ]);
 
-            // 4. Registrar el pago (Si es efectivo se asume que pagó)
-            if ($request->metodo_pago === 'EFECTIVO') {
-                Pago::create([
-                    'id_inscripcion' => $inscripcion->id_inscripcion,
-                    'monto' => $horario->curso->costo,
-                    'metodo' => 'EFECTIVO',
-                    'estado' => 'CONFIRMADO',
-                ]);
-                event(new InscripcionConfirmada($inscripcion));
-            }
+            Pago::create([
+                'id_inscripcion' => $inscripcion->id_inscripcion,
+                'monto' => $horario->curso->costo,
+                'metodo' => $request->metodo_pago,
+                'estado' => 'PENDIENTE',
+            ]);
         });
 
-        return redirect('/')->with('success', '¡Inscripción realizada! Revisa tu correo para crear tu contraseña y ver tu perfil.');
+        if ($nuevoUsuario) {
+            Password::sendResetLink(['correo' => $usuario->correo]);
+        }
+
+        return redirect('/')->with(
+            'success',
+            'Inscripción registrada. La Directiva verificará tu pago para confirmar tu cupo.'
+        );
     }
 
     // ==========================================
@@ -133,9 +152,21 @@ class CheckoutController extends Controller
             return back()->withErrors(['correo' => 'Este correo ya está registrado. Inicia sesión o usa otro.'])->withInput();
         }
 
-        DB::transaction(function () use ($request, $id_producto, &$usuario) {
+        $nuevoUsuario = false;
+        DB::transaction(function () use ($request, $id_producto, &$usuario, &$nuevoUsuario) {
+            $producto = Producto::whereKey($id_producto)->lockForUpdate()->firstOrFail();
+            if ($producto->stock_actual < $request->cantidad) {
+                throw ValidationException::withMessages([
+                    'cantidad' => 'Stock insuficiente para la cantidad solicitada.',
+                ]);
+            }
+
             if (!$usuario) {
                 $rolCliente = Rol::where('nombre', 'Cliente')->first();
+                if (!$rolCliente) {
+                    throw new \RuntimeException('No existe el rol Cliente para registrar la compra.');
+                }
+
                 $passwordTemporal = Str::random(8);
 
                 $usuario = Usuario::create([
@@ -145,12 +176,7 @@ class CheckoutController extends Controller
                     'activo' => true,
                 ]);
                 $usuario->roles()->attach($rolCliente->id_rol);
-                Password::sendResetLink(['correo' => $usuario->correo]);
-            }
-
-            $producto = Producto::findOrFail($id_producto);
-            if ($producto->stock_actual < $request->cantidad) {
-                throw new \Exception('Stock insuficiente.');
+                $nuevoUsuario = true;
             }
 
             $total = $producto->precio * $request->cantidad;
@@ -159,6 +185,9 @@ class CheckoutController extends Controller
             // Creamos la venta usando un usuario "Directiva" genérico o el mismo cliente
             // (Para simplificar, asignamos la venta al primer usuario con rol Directiva)
             $directiva = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Directiva'))->first();
+            if (!$directiva) {
+                throw new \RuntimeException('No existe un usuario de Directiva para registrar la venta.');
+            }
 
             $venta = Venta::create([
                 'id_usuario_directiva' => $directiva->id_usuario,
@@ -184,6 +213,10 @@ class CheckoutController extends Controller
                 event(new VentaConfirmada($venta));
             }
         });
+
+        if ($nuevoUsuario) {
+            Password::sendResetLink(['correo' => $usuario->correo]);
+        }
 
         return redirect('/')->with('success', '¡Compra realizada! Revisa tu correo para crear tu contraseña y ver tu perfil.');
     }

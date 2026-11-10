@@ -26,7 +26,8 @@
                 <th class="p-4">Alumno</th>
                 <th class="p-4">Curso</th>
                 <th class="p-4">Estado</th>
-                @if(Auth::user()->hasRole('Directiva') || Auth::user()->hasRole('Socio/Instructor'))
+                <th class="p-4">Pago</th>
+                @if(Auth::user()->hasRole('Directiva'))
                 <th class="p-4">Acciones</th>
                 @endif
             </tr>
@@ -46,8 +47,21 @@
                         <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold border border-yellow-200">Pendiente de Pago</span>
                     @endif
                 </td>
+                <td class="p-4">
+                    @forelse($ins->pagos as $pago)
+                        <div class="mb-1">
+                            <span class="font-medium">{{ $pago->metodo }}</span>
+                            <span>Bs. {{ number_format($pago->monto, 2) }}</span>
+                            <span class="text-xs {{ $pago->estado === 'CONFIRMADO' ? 'text-green-700' : 'text-yellow-700' }}">
+                                ({{ $pago->estado === 'CONFIRMADO' ? 'Verificado' : 'Pendiente de verificación' }})
+                            </span>
+                        </div>
+                    @empty
+                        <span class="text-xs text-gray-400">Sin pago registrado</span>
+                    @endforelse
+                </td>
                 
-                @if(Auth::user()->hasRole('Directiva') || Auth::user()->hasRole('Socio/Instructor'))
+                @if(Auth::user()->hasRole('Directiva'))
                 <td class="p-4">
                     @if($ins->estado == 'PENDIENTE_PAGO')
                         <form method="POST" action="/admin/inscripciones/{{ $ins->id_inscripcion }}/confirmar" onsubmit="return confirm('¿Confirmas que el pago ya fue recibido? Se calculará la comisión del 20%.');">
@@ -64,7 +78,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="4" class="p-8 text-center text-gray-500">
+                <td colspan="{{ Auth::user()->hasRole('Directiva') ? 5 : 4 }}" class="p-8 text-center text-gray-500">
                     <i class="fas fa-user-graduate text-4xl text-gray-300 mb-3 block"></i>
                     No hay inscripciones registradas.
                 </td>

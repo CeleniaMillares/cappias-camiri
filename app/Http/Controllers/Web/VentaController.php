@@ -13,6 +13,7 @@ use App\Events\VentaConfirmada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class VentaController extends Controller
 {
@@ -62,23 +63,22 @@ class VentaController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
-                $estadoVenta = 'PENDIENTE_PAGO';
-                if ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr')) {
-                    $estadoVenta = 'PAGADA';
-                }
-
                 $venta = Venta::create([
                     'id_feria' => $request->id_feria,
                     'id_usuario_directiva' => Auth::user()->id_usuario,
                     'total' => 0,
-                    'estado' => $estadoVenta,
+                    'estado' => 'PENDIENTE_PAGO',
                 ]);
 
                 $totalVenta = 0;
                 foreach ($request->productos as $item) {
-                    $producto = Producto::findOrFail($item['id_producto']);
+                    $producto = Producto::whereKey($item['id_producto'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
                     if ($producto->stock_actual < $item['cantidad']) {
-                        throw new \Exception("Stock insuficiente para: {$producto->nombre}");
+                        throw ValidationException::withMessages([
+                            'productos' => "Stock insuficiente para: {$producto->nombre}",
+                        ]);
                     }
                     $subtotal = $producto->precio * $item['cantidad'];
                     $totalVenta += $subtotal;
@@ -99,6 +99,12 @@ class VentaController extends Controller
                 if ($request->metodo_pago === 'EFECTIVO') { $montoEfectivo = $totalVenta; }
                 elseif ($request->metodo_pago === 'MIXTO') { $montoEfectivo = $request->monto_efectivo; }
 
+                if ($montoEfectivo > $totalVenta) {
+                    throw ValidationException::withMessages([
+                        'monto_efectivo' => 'El monto en efectivo no puede superar el total de la venta.',
+                    ]);
+                }
+
                 if ($montoEfectivo > 0) {
                     Pago::create([
                         'id_venta' => $venta->id_venta,
@@ -109,7 +115,9 @@ class VentaController extends Controller
                 }
 
                 // 🔥 Si es QR y se confirma, guardamos el pago QR
-                if (in_array($request->metodo_pago, ['QR', 'MIXTO']) && $request->has('confirmar_qr')) {
+                $qrConfirmado = in_array($request->metodo_pago, ['QR', 'MIXTO'], true)
+                    && $request->boolean('confirmar_qr');
+                if ($qrConfirmado) {
                     $saldoQR = $totalVenta - $montoEfectivo;
                     if ($saldoQR > 0) {
                         Pago::create([
@@ -120,6 +128,13 @@ class VentaController extends Controller
                         ]);
                     }
                 }
+
+                $estadoVenta = $request->metodo_pago === 'EFECTIVO'
+                    || $qrConfirmado
+                    || $montoEfectivo >= $totalVenta
+                    ? 'PAGADA'
+                    : 'PENDIENTE_PAGO';
+                $venta->update(['estado' => $estadoVenta]);
 
                 if ($estadoVenta === 'PAGADA') {
                     event(new VentaConfirmada($venta));
@@ -133,12 +148,12 @@ class VentaController extends Controller
     }
 
     public function confirmarPago($id_venta) {
-        $venta = Venta::findOrFail($id_venta);
-        if ($venta->estado === 'PAGADA' || $venta->estado === 'LIQUIDADA') {
-            return back()->with('error', 'Esta venta ya está pagada.');
-        }
+        $confirmada = DB::transaction(function () use ($id_venta) {
+            $venta = Venta::whereKey($id_venta)->lockForUpdate()->firstOrFail();
+            if (in_array($venta->estado, ['PAGADA', 'LIQUIDADA'], true)) {
+                return false;
+            }
 
-        DB::transaction(function () use ($venta) {
             $totalPagado = Pago::where('id_venta', $venta->id_venta)->where('estado', 'CONFIRMADO')->sum('monto');
             $saldo = $venta->total - $totalPagado;
 
@@ -153,7 +168,12 @@ class VentaController extends Controller
 
             $venta->update(['estado' => 'PAGADA']);
             event(new VentaConfirmada($venta));
+            return true;
         });
+
+        if (!$confirmada) {
+            return back()->with('error', 'Esta venta ya está pagada.');
+        }
 
         return back()->with('success', 'Pago confirmado. La venta está pagada y el stock descontado.');
     }

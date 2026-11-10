@@ -33,6 +33,7 @@
                     <th class="p-3 font-semibold">CI</th>
                     <th class="p-3 font-semibold">Teléfono</th>
                     <th class="p-3 font-semibold text-center">Estado de Pago</th>
+                    <th class="p-3 font-semibold">Método de Pago</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -48,10 +49,23 @@
                             <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">Pendiente</span>
                         @endif
                     </td>
+                    <td class="p-3">
+                        @forelse($inscripcion->pagos as $pago)
+                            <div class="mb-1">
+                                <span class="font-medium">{{ $pago->metodo }}</span>
+                                <span>Bs. {{ number_format($pago->monto, 2) }}</span>
+                                <span class="text-xs {{ $pago->estado === 'CONFIRMADO' ? 'text-green-700' : 'text-yellow-700' }}">
+                                    ({{ $pago->estado === 'CONFIRMADO' ? 'Verificado' : 'Pendiente' }})
+                                </span>
+                            </div>
+                        @empty
+                            <span class="text-xs text-gray-400">Sin pago registrado</span>
+                        @endforelse
+                    </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" class="p-6 text-center text-gray-500">
+                    <td colspan="5" class="p-6 text-center text-gray-500">
                         No hay alumnos inscritos en este horario todavía.
                     </td>
                 </tr>

@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\SocioController;
 use App\Http\Controllers\Web\PublicController;
 use App\Http\Controllers\Web\CheckoutController;
 use App\Http\Controllers\Web\PerfilController;
+use App\Http\Controllers\Web\PasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,8 @@ Route::get('/', function () {
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout']);
+Route::get('/password/reset/{token}', [PasswordResetController::class, 'create'])->name('password.reset');
+Route::post('/password/reset', [PasswordResetController::class, 'store'])->name('password.update');
 
 // Vitrina Pública (Catálogo para Alumnos y Clientes)
 Route::get('/vitrina/cursos', [PublicController::class, 'cursos'])->name('public.cursos');
@@ -108,7 +111,6 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         // Inscripciones
         Route::get('/inscripciones/crear/{id_horario_curso}', [InscripcionController::class, 'create']);
         Route::post('/inscripciones', [InscripcionController::class, 'store']);
-        Route::post('/inscripciones/{id}/confirmar', [InscripcionController::class, 'confirmar']);
         
         // Ver alumnos de un curso
         Route::get('/cursos/{id}/alumnos', [CursoController::class, 'showAlumnos']);
@@ -125,6 +127,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:Directiva')->group(function () {
+        Route::post('/inscripciones/{id}/confirmar', [InscripcionController::class, 'confirmar']);
         
         // --- Cursos ---
         Route::get('/cursos/crear', [CursoController::class, 'create']);
@@ -170,6 +173,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::get('/socios', [SocioController::class, 'index']);
         Route::get('/socios/crear', [SocioController::class, 'create']);
         Route::post('/socios', [SocioController::class, 'store']);
+        Route::post('/socios/{id_socio}/confirmar-pendientes', [SocioController::class, 'confirmarPendientes']);
         Route::get('/socios/{id}/pago-mensual', [SocioController::class, 'createPagoMensual']);
         Route::post('/socios/{id}/pago-mensual', [SocioController::class, 'storePagoMensual']);
         Route::get('/socios/{id}/historial', [SocioController::class, 'historial']);

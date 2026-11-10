@@ -30,6 +30,12 @@
         </div>
     </nav>
 
+    @if(session('success'))
+        <div class="fixed top-20 left-1/2 z-30 w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 rounded-lg border border-green-300 bg-green-100 px-5 py-4 text-green-800 shadow-lg" role="status">
+            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+        </div>
+    @endif
+
     <!-- Hero Section -->
     <div class="relative bg-slate-900 h-screen flex items-center justify-center overflow-hidden pt-16">
         <!-- Imagen de fondo (Artesanía) -->

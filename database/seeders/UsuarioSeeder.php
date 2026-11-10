@@ -18,35 +18,31 @@ class UsuarioSeeder extends Seeder
         $rolAlumno = Rol::where('nombre', 'Alumno')->first();
 
         // 1. Usuario Administrador
-        $admin = Usuario::create([
+        $admin = Usuario::firstOrCreate(['correo' => 'admin@cappias.com'], [
             'nombre' => 'Administrador General',
-            'correo' => 'admin@cappias.com',
             'contrasena_hash' => Hash::make('admin123'),
             'activo' => true,
         ]);
-        $admin->roles()->attach($rolAdmin->id_rol);
+        $admin->roles()->syncWithoutDetaching([$rolAdmin->id_rol]);
 
         // 2. Usuario Directiva
-        $directiva = Usuario::create([
+        $directiva = Usuario::firstOrCreate(['correo' => 'directiva@cappias.com'], [
             'nombre' => 'Directiva CAPPIAS',
-            'correo' => 'directiva@cappias.com',
             'contrasena_hash' => Hash::make('directiva123'),
             'activo' => true,
         ]);
-        $directiva->roles()->attach($rolDirectiva->id_rol);
+        $directiva->roles()->syncWithoutDetaching([$rolDirectiva->id_rol]);
 
         // 3. Usuario Socio/Instructor (AHORA CON PERFIL DE SOCIO)
-        $socio = Usuario::create([
+        $socio = Usuario::firstOrCreate(['correo' => 'socio@cappias.com'], [
             'nombre' => 'Socio Ejemplo',
-            'correo' => 'socio@cappias.com',
             'contrasena_hash' => Hash::make('socio123'),
             'activo' => true,
         ]);
-        $socio->roles()->attach($rolSocio->id_rol);
+        $socio->roles()->syncWithoutDetaching([$rolSocio->id_rol]);
 
         // 🔥 Creamos su perfil en la tabla socios
-        Socio::create([
-            'id_usuario' => $socio->id_usuario,
+        Socio::updateOrCreate(['id_usuario' => $socio->id_usuario], [
             'ci' => '00000000',
             'telefono' => '70000000',
             'direccion' => 'Sede CAPPIAS',
@@ -55,12 +51,11 @@ class UsuarioSeeder extends Seeder
         ]);
 
         // 4. Usuario Alumno
-        $alumno = Usuario::create([
+        $alumno = Usuario::firstOrCreate(['correo' => 'alumno@cappias.com'], [
             'nombre' => 'Alumno Ejemplo',
-            'correo' => 'alumno@cappias.com',
             'contrasena_hash' => Hash::make('alumno123'),
             'activo' => true,
         ]);
-        $alumno->roles()->attach($rolAlumno->id_rol);
+        $alumno->roles()->syncWithoutDetaching([$rolAlumno->id_rol]);
     }
 }

@@ -31,6 +31,12 @@
                 <p class="text-gray-500 mt-2">Ingresa tus credenciales para acceder.</p>
             </div>
 
+            @if(session('success'))
+                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-r-lg" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
             <!-- Errores -->
             @if ($errors->any())
                 <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg" role="alert">

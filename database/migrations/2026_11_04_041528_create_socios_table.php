@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('socios', function (Blueprint $table) {
             $table->uuid('id_socio')->primary();
-            $table->uuid('id_usuario');
+            $table->uuid('id_usuario')->unique();
             $table->string('ci', 20)->unique();
             $table->string('telefono', 20);
             $table->string('direccion', 255)->nullable();
@@ -19,7 +19,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('id_usuario')->references('id_usuario')->on('usuarios')->onDelete('cascade');
+            $table->foreign('id_usuario')
+                  ->references('id_usuario')
+                  ->on('usuarios')
+                  ->restrictOnDelete();
         });
     }
 

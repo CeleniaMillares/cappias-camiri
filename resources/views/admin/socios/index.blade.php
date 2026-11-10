@@ -82,27 +82,49 @@
                 </td>
                 
                 <!-- Acciones -->
-                <td class="p-4 flex flex-wrap gap-2 items-center">
+                <td class="p-4 flex flex-wrap gap-2 items-start">
                     
-                    <!-- 🔥 BOTÓN DE CONFIRMAR PAGO QR (Si hay una cuota pendiente) -->
-                    @if($socio->pago_pendiente)
-                        <form method="POST" action="/admin/socios/confirmar-pago/{{ $socio->pago_pendiente->id_cuota }}" onsubmit="return confirm('¿Confirmas que el pago QR ya llegó a la cuenta bancaria?');">
-                            @csrf
-                            <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm animate-pulse transition flex items-center">
-                                <i class="fas fa-check-double mr-1"></i> Confirmar Pago QR
-                            </button>
-                        </form>
+                    <!-- 🔥 BOTÓN DE CONFIRMAR PAGO CON DETALLE -->
+                    @if($socio->cuotasPendientes->isNotEmpty())
+                        <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 min-w-[220px]">
+                            <p class="text-[10px] text-yellow-800 font-bold uppercase tracking-wide mb-1">
+                                <i class="fas fa-clock"></i> Pago pendiente de verificar
+                            </p>
+                            <p class="text-sm font-semibold text-gray-800">
+                                {{ implode(', ', $socio->conceptosPendientes) }}
+                            </p>
+                            <p class="text-xl font-extrabold text-yellow-900 mb-1">
+                                Bs. {{ number_format($socio->totalPendiente, 2) }}
+                            </p>
+                            @if($socio->totalAbonado > 0)
+                                <p class="text-[10px] text-gray-600 mb-1">
+                                    Ya abonado: Bs. {{ number_format($socio->totalAbonado, 2) }} (efectivo)
+                                </p>
+                            @endif
+                            <p class="text-[10px] text-gray-500 mb-2">
+                                Método: {{ $socio->cuotasPendientes->first()->metodo ?? 'N/A' }}
+                            </p>
+                            <form method="POST" action="/admin/socios/{{ $socio->id_socio }}/confirmar-pendientes" onsubmit="return confirm('¿Confirmas todos los pagos pendientes por un total de Bs. {{ number_format($socio->totalPendiente, 2) }}?');">
+                                @csrf
+                                <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm w-full animate-pulse flex items-center justify-center gap-1">
+                                    <i class="fas fa-check-double"></i>
+                                    Confirmar Todos los Pagos
+                                </button>
+                            </form>
+                        </div>
                     @endif
 
-                    <!-- Botón Pagar Mensualidad -->
-                    <a href="/admin/socios/{{ $socio->id_socio }}/pago-mensual" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition shadow-sm">
-                        <i class="fas fa-money-bill-wave mr-1"></i> Pagar Mes
-                    </a>
-                    
-                    <!-- Botón Historial -->
-                    <a href="/admin/socios/{{ $socio->id_socio }}/historial" class="bg-gray-100 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-600 hover:text-white transition shadow-sm">
-                        <i class="fas fa-history mr-1"></i> Historial
-                    </a>
+                    <div class="flex flex-col gap-2">
+                        <!-- Botón Pagar Mensualidad -->
+                        <a href="/admin/socios/{{ $socio->id_socio }}/pago-mensual" class="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition shadow-sm text-center">
+                            <i class="fas fa-money-bill-wave mr-1"></i> Pagar Mes
+                        </a>
+                        
+                        <!-- Botón Historial -->
+                        <a href="/admin/socios/{{ $socio->id_socio }}/historial" class="bg-gray-100 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-600 hover:text-white transition shadow-sm text-center">
+                            <i class="fas fa-history mr-1"></i> Historial
+                        </a>
+                    </div>
                 </td>
             </tr>
             @empty
