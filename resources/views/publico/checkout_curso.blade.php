@@ -61,7 +61,11 @@
                     @if($qrImage)
                         <p class="font-semibold text-gray-700 mb-2">Escanea el QR oficial para realizar la transferencia:</p>
                         <img src="{{ asset('storage/' . $qrImage) }}" alt="QR oficial de pagos" class="mx-auto max-h-64 rounded-lg border p-2">
-                        <p class="text-sm text-gray-600 mt-2">La Directiva verificará la transferencia antes de confirmar tu cupo.</p>
+                        <label class="flex items-center justify-center gap-2 mt-3 text-sm text-gray-700">
+                            <input type="checkbox" name="confirmar_qr" value="1" @checked(old('confirmar_qr'))>
+                            <span>Confirmo que ya realicé la transferencia QR.</span>
+                        </label>
+                        <p class="text-xs text-gray-600 mt-2">Si marcas esta opción, la inscripción quedará confirmada al enviar.</p>
                     @else
                         <p class="text-sm text-red-700 bg-red-50 p-3 rounded-lg">El QR oficial todavía no está configurado. Selecciona efectivo o comunícate con la Directiva.</p>
                     @endif

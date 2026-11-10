@@ -58,6 +58,10 @@ class Usuario extends Authenticatable
         return $this->hasMany(Curso::class, 'id_usuario_instructor', 'id_usuario');
     }
 
+    public function alumno() {
+        return $this->hasOne(Alumno::class, 'id_usuario', 'id_usuario');
+    }
+
     // 🔥 RELACIÓN ÚNICA CON SOCIO (Eliminamos la duplicada)
     public function socio() {
         return $this->hasOne(Socio::class, 'id_usuario', 'id_usuario');

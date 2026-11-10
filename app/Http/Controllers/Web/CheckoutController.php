@@ -15,12 +15,14 @@ use App\Models\DetalleVenta;
 use App\Models\Pago;
 use App\Models\Parametro;
 use App\Events\VentaConfirmada;
+use App\Events\InscripcionConfirmada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Password; // Para enviar correo de restablecer contraseña
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
@@ -29,13 +31,15 @@ class CheckoutController extends Controller
     // CHECKOUT DE CURSO (ALUMNO)
     // ==========================================
     public function createCurso($id_curso) {
-        $curso = Curso::with('horarios')->findOrFail($id_curso);
+        $curso = Curso::where('activo', true)->with('horarios')->findOrFail($id_curso);
         $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
         
         return view('publico.checkout_curso', compact('curso', 'qrImage'));
     }
 
     public function storeCurso(Request $request, $id_curso) {
+        Curso::where('activo', true)->findOrFail($id_curso);
+
         $request->validate([
             'correo' => 'required|email',
             'nombres' => 'required|string|max:150',
@@ -43,6 +47,7 @@ class CheckoutController extends Controller
             'telefono' => 'required|string|max:20',
             'id_horario_curso' => 'required|exists:horario_cursos,id_horario_curso',
             'metodo_pago' => 'required|in:EFECTIVO,QR',
+            'confirmar_qr' => 'sometimes|boolean',
         ]);
 
         $usuario = Usuario::where('correo', $request->correo)->first();
@@ -56,77 +61,147 @@ class CheckoutController extends Controller
         }
 
         $nuevoUsuario = false;
-        DB::transaction(function () use ($request, $id_curso, &$usuario, &$nuevoUsuario) {
-            $horario = HorarioCurso::with('curso')
-                ->lockForUpdate()
-                ->findOrFail($request->id_horario_curso);
-            abort_unless((string) $horario->id_curso === (string) $id_curso, 404);
+        try {
+            DB::transaction(function () use ($request, $id_curso, &$usuario, &$nuevoUsuario) {
+                $curso = Curso::where('activo', true)
+                    ->whereKey($id_curso)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $horario = HorarioCurso::with('curso')
+                    ->lockForUpdate()
+                    ->findOrFail($request->id_horario_curso);
+                abort_unless((string) $horario->id_curso === (string) $curso->id_curso, 404);
 
-            // 1. Si el usuario NO existe, lo creamos automáticamente como Alumno
-            if (!$usuario) {
                 $rolAlumno = Rol::where('nombre', 'Alumno')->first();
                 if (!$rolAlumno) {
                     throw new \RuntimeException('No existe el rol Alumno para registrar la inscripcion.');
                 }
 
-                $passwordTemporal = Str::random(8); // Generamos contraseña temporal
+                if (!$usuario) {
+                    $passwordTemporal = Str::random(8);
 
-                $usuario = Usuario::create([
-                    'nombre' => $request->nombres,
-                    'correo' => $request->correo,
-                    'contrasena_hash' => Hash::make($passwordTemporal),
-                    'activo' => true,
-                ]);
-                $usuario->roles()->attach($rolAlumno->id_rol);
-                $nuevoUsuario = true;
-            }
+                    $usuario = Usuario::create([
+                        'nombre' => $request->nombres,
+                        'correo' => $request->correo,
+                        'contrasena_hash' => Hash::make($passwordTemporal),
+                        'activo' => true,
+                    ]);
+                    $nuevoUsuario = true;
+                }
+                $usuario->roles()->syncWithoutDetaching([$rolAlumno->id_rol]);
 
-            // 2. Buscar o crear el Alumno
-            $alumno = Alumno::firstOrCreate(
-                ['ci' => $request->ci],
-                ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => 18] // Edad por defecto o pedirla
-            );
+                $alumnoDeLaCuenta = $usuario->alumno;
+                if ($alumnoDeLaCuenta && $alumnoDeLaCuenta->ci !== $request->ci) {
+                    throw ValidationException::withMessages([
+                        'ci' => 'El CI no coincide con el perfil de alumno asociado a esta cuenta.',
+                    ]);
+                }
 
-            $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
-                ->where('id_horario_curso', $horario->id_horario_curso)
-                ->exists();
-            if ($yaInscrito) {
-                throw ValidationException::withMessages([
-                    'id_horario_curso' => 'Este alumno ya está inscrito en este horario.',
-                ]);
-            }
+                $alumno = Alumno::firstOrCreate(
+                    ['ci' => $request->ci],
+                    [
+                        'id_usuario' => $usuario->id_usuario,
+                        'nombres' => $request->nombres,
+                        'telefono' => $request->telefono,
+                        'edad' => 18,
+                    ]
+                );
+                if ($alumno->id_usuario && $alumno->id_usuario !== $usuario->id_usuario) {
+                    throw ValidationException::withMessages([
+                        'ci' => 'Este CI ya está asociado a otra cuenta.',
+                    ]);
+                }
+                if (!$alumno->id_usuario) {
+                    $alumno->update(['id_usuario' => $usuario->id_usuario]);
+                }
+
+                $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
+                    ->where('id_horario_curso', $horario->id_horario_curso)
+                    ->exists();
+                if ($yaInscrito) {
+                    throw ValidationException::withMessages([
+                        'id_horario_curso' => 'Este alumno ya está inscrito en este horario.',
+                    ]);
+                }
             
-            // Verificar cupo
-            $inscritos = Inscripcion::where('id_horario_curso', $horario->id_horario_curso)->count();
-            if ($inscritos >= $horario->cupo_maximo) {
-                throw ValidationException::withMessages([
-                    'id_horario_curso' => 'El cupo para este horario está lleno.',
+                // Las inscripciones pendientes reservan cupo hasta que la Directiva las resuelva.
+                $inscritos = Inscripcion::where('id_horario_curso', $horario->id_horario_curso)->count();
+                if ($inscritos >= $horario->cupo_maximo) {
+                    throw ValidationException::withMessages([
+                        'id_horario_curso' => 'El cupo para este horario está lleno.',
+                    ]);
+                }
+
+                $qrConfirmado = $request->metodo_pago === 'QR' && $request->boolean('confirmar_qr');
+                $inscripcion = Inscripcion::create([
+                    'id_alumno' => $alumno->id_alumno,
+                    'id_horario_curso' => $horario->id_horario_curso,
+                    'estado' => $qrConfirmado ? 'CONFIRMADA' : 'PENDIENTE_PAGO',
                 ]);
+
+                Pago::create([
+                    'id_inscripcion' => $inscripcion->id_inscripcion,
+                    'monto' => $horario->curso->costo,
+                    'metodo' => $request->metodo_pago,
+                    'estado' => $qrConfirmado ? 'CONFIRMADO' : 'PENDIENTE',
+                ]);
+
+                if ($qrConfirmado) {
+                    event(new InscripcionConfirmada($inscripcion));
+                }
+            });
+        } catch (QueryException $exception) {
+            if (
+                $this->isDuplicateEnrollmentException($exception)
+                || (
+                    $this->isUniqueConstraintViolation($exception)
+                    && $this->enrollmentExistsForCiAndSchedule($request->ci, $request->id_horario_curso)
+                )
+            ) {
+                return back()->withErrors([
+                    'id_horario_curso' => 'Este alumno ya se encuentra inscrito en este horario.',
+                ])->withInput();
             }
 
-            // Todas las inscripciones esperan la verificación de la Directiva.
-            $inscripcion = Inscripcion::create([
-                'id_alumno' => $alumno->id_alumno,
-                'id_horario_curso' => $horario->id_horario_curso,
-                'estado' => 'PENDIENTE_PAGO',
-            ]);
-
-            Pago::create([
-                'id_inscripcion' => $inscripcion->id_inscripcion,
-                'monto' => $horario->curso->costo,
-                'metodo' => $request->metodo_pago,
-                'estado' => 'PENDIENTE',
-            ]);
-        });
+            throw $exception;
+        }
 
         if ($nuevoUsuario) {
             Password::sendResetLink(['correo' => $usuario->correo]);
         }
 
-        return redirect('/')->with(
-            'success',
-            'Inscripción registrada. La Directiva verificará tu pago para confirmar tu cupo.'
-        );
+        $mensaje = $request->metodo_pago === 'QR' && $request->boolean('confirmar_qr')
+            ? 'Inscripción confirmada y pago QR registrado.'
+            : 'Inscripción registrada. La Directiva verificará tu pago para confirmar tu cupo.';
+
+        return redirect('/')->with('success', $mensaje);
+    }
+
+    private function isDuplicateEnrollmentException(QueryException $exception): bool
+    {
+        $databaseMessage = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        return str_contains($databaseMessage, 'inscripciones_id_alumno_id_horario_curso_unique')
+            || (
+                str_contains($databaseMessage, 'inscripciones.id_alumno')
+                && str_contains($databaseMessage, 'inscripciones.id_horario_curso')
+            );
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = $exception->errorInfo[0] ?? (string) $exception->getCode();
+
+        return in_array($sqlState, ['23505', '23000', '19'], true);
+    }
+
+    private function enrollmentExistsForCiAndSchedule(string $ci, string $idHorarioCurso): bool
+    {
+        $idAlumno = Alumno::where('ci', $ci)->value('id_alumno');
+
+        return $idAlumno !== null && Inscripcion::where('id_alumno', $idAlumno)
+            ->where('id_horario_curso', $idHorarioCurso)
+            ->exists();
     }
 
     // ==========================================

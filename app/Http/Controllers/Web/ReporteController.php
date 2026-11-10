@@ -42,7 +42,7 @@ class ReporteController extends Controller
             $totalCursos += $ins->horarioCurso->curso->costo ?? 0;
         }
         $porcentajeCurso = Parametro::where('clave', 'comision_curso')->value('valor') ?? 20;
-        $comisionCursos = ($totalCursos * $porcentajeCurso) / 100;
+        $comisionCursos = $inscripciones->sum('comision_cappias');
 
         // ==========================================
         // 3. REPORTE DE SOCIOS (MATRÍCULAS Y MENSUALIDADES)

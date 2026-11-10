@@ -66,7 +66,7 @@
             </div>
             <div>
                 <label class="block mb-1 text-sm">Cupo Máximo:</label>
-                <input type="number" name="horarios[0][cupo_maximo]" value="{{ $horario->cupo_maximo }}" class="w-full border p-2 rounded-lg" required>
+                <input type="number" name="horarios[0][cupo_maximo]" value="{{ $horario->cupo_maximo }}" min="{{ $cupoMin }}" max="{{ $cupoMax }}" class="w-full border p-2 rounded-lg" required>
             </div>
             <div>
                 <label class="block mb-1 text-sm">Hora Inicio:</label>

@@ -102,7 +102,7 @@
                                 </p>
                             @endif
                             <p class="text-[10px] text-gray-500 mb-2">
-                                Método: {{ $socio->cuotasPendientes->first()->metodo ?? 'N/A' }}
+                                Método(s): {{ $socio->cuotasPendientes->pluck('metodo')->unique()->implode(', ') ?: 'N/A' }}
                             </p>
                             <form method="POST" action="/admin/socios/{{ $socio->id_socio }}/confirmar-pendientes" onsubmit="return confirm('¿Confirmas todos los pagos pendientes por un total de Bs. {{ number_format($socio->totalPendiente, 2) }}?');">
                                 @csrf

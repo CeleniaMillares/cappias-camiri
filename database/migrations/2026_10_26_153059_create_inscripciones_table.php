@@ -9,6 +9,8 @@ return new class extends Migration {
             $table->uuid('id_inscripcion')->primary();
             $table->uuid('id_alumno');
             $table->uuid('id_horario_curso');
+            $table->decimal('comision_cappias', 10, 2)->default(0);
+            $table->boolean('comision_calculada')->default(false);
             $table->string('estado', 20)->default('PENDIENTE_PAGO'); 
             $table->timestamps();
 

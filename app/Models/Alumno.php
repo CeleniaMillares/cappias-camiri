@@ -10,7 +10,11 @@ class Alumno extends Model {
     protected $primaryKey = 'id_alumno';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['nombres', 'ci', 'telefono', 'edad', 'activo'];
+    protected $fillable = ['id_usuario', 'nombres', 'ci', 'telefono', 'edad', 'activo'];
+
+    public function usuario() {
+        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
+    }
 
     public function inscripciones() {
         return $this->hasMany(Inscripcion::class, 'id_alumno', 'id_alumno');

@@ -9,7 +9,12 @@ class Inscripcion extends Model {
     protected $primaryKey = 'id_inscripcion';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['id_alumno', 'id_horario_curso', 'estado'];
+    protected $fillable = ['id_alumno', 'id_horario_curso', 'comision_cappias', 'comision_calculada', 'estado'];
+
+    protected $casts = [
+        'comision_cappias' => 'decimal:2',
+        'comision_calculada' => 'boolean',
+    ];
 
     public function alumno() {
         return $this->belongsTo(Alumno::class, 'id_alumno', 'id_alumno');

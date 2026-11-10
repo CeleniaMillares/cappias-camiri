@@ -9,6 +9,7 @@ use App\Models\HorarioCurso;
 use App\Models\Pago;
 use App\Models\Parametro; // 🔥 IMPORTANTE
 use App\Events\InscripcionConfirmada;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class InscripcionController extends Controller
         $query = Inscripcion::with(['alumno', 'horarioCurso.curso', 'pagos']);
 
         if ($user->hasRole('Alumno')) {
-            $query->whereHas('alumno', fn($q) => $q->where('nombres', 'LIKE', '%' . $user->nombre . '%'));
+            $query->where('id_alumno', $user->alumno?->id_alumno ?? '');
         } elseif ($user->hasRole('Socio/Instructor')) {
             $query->whereHas('horarioCurso.curso', fn($q) => $q->where('id_usuario_instructor', $user->id_usuario));
         }
@@ -32,6 +33,11 @@ class InscripcionController extends Controller
 
     public function create($id_horario_curso) {
         $horario = HorarioCurso::with('curso')->findOrFail($id_horario_curso);
+        $user = Auth::user();
+        if ($user->hasRole('Socio/Instructor') && $horario->curso->id_usuario_instructor !== $user->id_usuario) {
+            abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
+        }
+
         // 🔥 Cargamos el QR oficial
         $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
         return view('admin.inscripciones.create', compact('horario', 'qrImage'));
@@ -48,8 +54,14 @@ class InscripcionController extends Controller
             'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
         ]);
 
+        $user = Auth::user();
+        $horarioParaValidar = HorarioCurso::with('curso')->findOrFail($request->id_horario_curso);
+        if ($user->hasRole('Socio/Instructor') && $horarioParaValidar->curso->id_usuario_instructor !== $user->id_usuario) {
+            abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
+        }
+
         try {
-            DB::transaction(function () use ($request) {
+            DB::transaction(function () use ($request, $user) {
                 $alumno = Alumno::firstOrCreate(
                     ['ci' => $request->ci],
                     ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => $request->edad]
@@ -58,6 +70,9 @@ class InscripcionController extends Controller
                 $horario = HorarioCurso::with('curso')
                     ->lockForUpdate()
                     ->findOrFail($request->id_horario_curso);
+                if ($user->hasRole('Socio/Instructor') && $horario->curso->id_usuario_instructor !== $user->id_usuario) {
+                    abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
+                }
 
                 $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
                     ->where('id_horario_curso', $horario->id_horario_curso)->exists();
@@ -108,9 +123,35 @@ class InscripcionController extends Controller
             });
 
             return redirect('/admin/inscripciones')->with('success', 'Inscripción registrada correctamente.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (QueryException $e) {
+            if ($this->isDuplicateEnrollmentException($e)) {
+                return back()->withErrors([
+                    'ci' => 'Este alumno ya se encuentra inscrito en este horario.',
+                ])->withInput();
+            }
+
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
+    }
+
+    private function isDuplicateEnrollmentException(QueryException $exception): bool
+    {
+        $sqlState = $exception->errorInfo[0] ?? (string) $exception->getCode();
+        $databaseMessage = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        if (!in_array($sqlState, ['23505', '23000', '19'], true)) {
+            return false;
+        }
+
+        return str_contains($databaseMessage, 'inscripciones_id_alumno_id_horario_curso_unique')
+            || (
+                str_contains($databaseMessage, 'inscripciones.id_alumno')
+                && str_contains($databaseMessage, 'inscripciones.id_horario_curso')
+            );
     }
 
     public function confirmar($id) {

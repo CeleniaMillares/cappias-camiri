@@ -18,7 +18,7 @@ class PerfilController extends Controller
             abort(403, 'No tienes un perfil de socio registrado.');
         }
 
-        $pagos = $socio->pagos()->orderBy('fecha_pago', 'desc')->get();
+        $pagos = $socio->cuotas()->orderBy('fecha_pago', 'desc')->get();
         
         return view('admin.perfil.socio', compact('user', 'socio', 'pagos'));
     }
@@ -71,10 +71,10 @@ class PerfilController extends Controller
     // Portal del Alumno/Cliente (ver sus inscripciones y compras)
     public function alumno() {
         $user = Auth::user();
-        $inscripciones = \App\Models\Inscripcion::with(['horarioCurso.curso', 'pagos'])
-            ->whereHas('alumno', function($q) use ($user) {
-                $q->where('nombres', 'LIKE', '%' . $user->nombre . '%');
-            })->get();
+        $alumno = $user->alumno;
+        $inscripciones = $alumno
+            ? $alumno->inscripciones()->with(['horarioCurso.curso', 'pagos'])->latest()->get()
+            : collect();
 
         // También buscamos ventas hechas con su correo (aunque el sistema no vincula ventas a usuarios)
         // Por ahora solo mostramos inscripciones

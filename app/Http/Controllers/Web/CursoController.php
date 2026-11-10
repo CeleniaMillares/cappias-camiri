@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Curso;
 use App\Models\Usuario;
 use App\Models\HorarioCurso;
+use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -35,10 +36,15 @@ class CursoController extends Controller
 
     public function create() {
         $instructores = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Socio/Instructor'))->get();
-        return view('admin.cursos.create', compact('instructores'));
+        $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
+        $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
+        return view('admin.cursos.create', compact('instructores', 'cupoMin', 'cupoMax'));
     }
 
     public function store(Request $request) {
+        $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
+        $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
+
         $request->validate([
             'id_usuario_instructor' => 'required|uuid|exists:usuarios,id_usuario',
             'nombre' => 'required|string|max:150',
@@ -51,7 +57,7 @@ class CursoController extends Controller
             'horarios.*.hora_fin' => 'required',
             'horarios.*.fecha_inicio' => 'required|date',
             'horarios.*.fecha_fin' => 'required|date|after_or_equal:horarios.*.fecha_inicio',
-            'horarios.*.cupo_maximo' => 'required|integer|max:15',
+            'horarios.*.cupo_maximo' => "required|integer|min:{$cupoMin}|max:{$cupoMax}",
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -91,11 +97,16 @@ class CursoController extends Controller
         $curso = Curso::with('horarios')->findOrFail($id);
         $instructores = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Socio/Instructor'))->get();
         $horario = $curso->horarios->first();
-        
-        return view('admin.cursos.edit', compact('curso', 'instructores', 'horario'));
+        $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
+        $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
+
+        return view('admin.cursos.edit', compact('curso', 'instructores', 'horario', 'cupoMin', 'cupoMax'));
     }
 
     public function update(Request $request, $id) {
+        $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
+        $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
+
         $request->validate([
             'id_usuario_instructor' => 'required|exists:usuarios,id_usuario',
             'nombre' => 'required',
@@ -106,8 +117,8 @@ class CursoController extends Controller
             'horarios.0.hora_inicio' => 'required',
             'horarios.0.hora_fin' => 'required',
             'horarios.0.fecha_inicio' => 'required|date',
-            'horarios.0.fecha_fin' => 'required|date',
-            'horarios.0.cupo_maximo' => 'required|integer',
+            'horarios.0.fecha_fin' => 'required|date|after_or_equal:horarios.0.fecha_inicio',
+            'horarios.0.cupo_maximo' => "required|integer|min:{$cupoMin}|max:{$cupoMax}",
         ]);
 
         return DB::transaction(function () use ($request, $id) {

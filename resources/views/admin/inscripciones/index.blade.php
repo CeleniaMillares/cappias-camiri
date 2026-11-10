@@ -44,7 +44,7 @@
                     @if($ins->estado == 'CONFIRMADA')
                         <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold border border-green-200">Confirmada</span>
                     @else
-                        <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold border border-yellow-200">Pendiente de Pago</span>
+                        <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold border border-yellow-200">PENDIENTE_PAGO — cupo reservado, pago por verificar</span>
                     @endif
                 </td>
                 <td class="p-4">

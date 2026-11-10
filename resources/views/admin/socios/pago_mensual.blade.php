@@ -66,8 +66,7 @@
             </div>
             <div>
                 <label class="block mb-1 font-semibold text-sm">Cantidad de Meses:</label>
-                {{-- 🔥 SIN max:12 --}}
-                <input type="number" name="meses" id="meses" value="{{ old('meses', 1) }}" min="1" class="w-full border p-2 rounded" required oninput="actualizarPreview()">
+                <input type="number" name="meses" id="meses" value="{{ old('meses', 1) }}" min="1" max="120" class="w-full border p-2 rounded" required oninput="actualizarPreview()">
             </div>
         </div>
         
@@ -148,7 +147,7 @@
         let safety = 0;
         let total = 0;
         
-        while (contador < meses && safety < 60) {
+        while (contador < Math.min(meses, 120) && safety < 120) {
             const periodo = cursor.getFullYear() + '-' + String(cursor.getMonth() + 1).padStart(2, '0');
             const label = cursor.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
             

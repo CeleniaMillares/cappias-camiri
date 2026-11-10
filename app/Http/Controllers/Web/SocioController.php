@@ -76,6 +76,8 @@ class SocioController extends Controller
     }
 
     public function store(Request $request) {
+        $montoInscripcion = Parametro::where('clave', 'monto_inscripcion')->value('valor') ?? 100;
+
         $request->validate([
             'nombre' => 'required|string|max:150',
             'correo' => 'required|email|unique:usuarios,correo',
@@ -83,10 +85,16 @@ class SocioController extends Controller
             'ci' => 'required|string|max:20|unique:socios,ci',
             'telefono' => 'required|string|max:20',
             'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
-            'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
+            'monto_efectivo' => [
+                'required_if:metodo_pago,MIXTO',
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:'.$montoInscripcion,
+            ],
         ]);
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $montoInscripcion) {
             $rolSocio = Rol::where('nombre', 'Socio/Instructor')->first();
 
             $usuario = Usuario::create([
@@ -111,14 +119,19 @@ class SocioController extends Controller
                 $estado = 'CONFIRMADO';
             }
 
-            $montoInscripcion = Parametro::where('clave', 'monto_inscripcion')->value('valor') ?? 100;
-            
+            $montoEfectivo = match ($request->metodo_pago) {
+                'EFECTIVO' => $montoInscripcion,
+                'MIXTO' => $request->monto_efectivo,
+                default => 0,
+            };
+
             CuotaSocio::create([
                 'id_socio' => $socio->id_socio,
-                'tipo' => 'MATRICULA', // 🔥 Cambiado
+                'tipo' => 'MATRICULA',
                 'metodo' => $request->metodo_pago,
                 'estado' => $estado,
                 'monto' => $montoInscripcion,
+                'monto_efectivo' => $montoEfectivo,
                 'fecha_pago' => now()->toDateString(),
             ]);
         });
@@ -198,7 +211,7 @@ class SocioController extends Controller
     public function storePagoMensual(Request $request, $id_socio) {
         $request->validate([
             'periodo_inicio' => 'required|date_format:Y-m',
-            'meses' => 'required|integer|min:1', // 🔥 SIN límite máximo
+            'meses' => 'required|integer|min:1|max:120',
             'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
             'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
         ]);
@@ -206,10 +219,17 @@ class SocioController extends Controller
         $socio = Socio::findOrFail($id_socio);
         $montoMensualidad = Parametro::where('clave', 'monto_mensualidad')->value('valor') ?? 50;
         $meses = $request->meses;
+        $totalPagar = $montoMensualidad * $meses;
+
+        if ($request->metodo_pago === 'MIXTO') {
+            $request->validate([
+                'monto_efectivo' => 'required|numeric|min:0|max:'.$totalPagar,
+            ]);
+        }
         
         $esPagoConfirmado = ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr'));
         $estado = $esPagoConfirmado ? 'CONFIRMADO' : 'PENDIENTE';
-        $fechaInicio = Carbon::createFromFormat('Y-m', $request->periodo_inicio);
+        $fechaInicio = Carbon::createFromFormat('Y-m', $request->periodo_inicio)->startOfMonth();
         
         // 🔥 Calcular cuánto es efectivo y cuánto QR por cada mes
         $efectivoTotal = 0;
@@ -223,18 +243,16 @@ class SocioController extends Controller
         $creados = [];
         $saltados = [];
 
-        DB::transaction(function () use ($socio, $fechaInicio, $meses, $montoMensualidad, $request, $estado, $efectivoTotal, $esPagoConfirmado, &$creados, &$saltados) {
+        DB::transaction(function () use ($socio, $fechaInicio, $meses, $montoMensualidad, $request, $estado, $efectivoTotal, &$creados, &$saltados) {
             $cursor = $fechaInicio->copy();
             $contador = 0;
-            $safety = 0;
             
-            while ($contador < $meses && $safety < 60) {
+            while ($contador < $meses) {
                 $periodoActual = $cursor->format('Y-m');
                 
                 $existe = CuotaSocio::where('id_socio', $socio->id_socio)
                     ->where('tipo', 'MENSUALIDAD')
                     ->where('periodo', $periodoActual)
-                    ->where('estado', 'CONFIRMADO')
                     ->exists();
                 
                 if ($existe) {
@@ -260,15 +278,13 @@ class SocioController extends Controller
                     $creados[] = $periodoActual;
                     $contador++;
                 }
-                
                 $cursor->addMonth();
-                $safety++;
             }
         });
 
         $mensaje = count($creados) . ' mes(es) registrado(s).';
         if (count($saltados) > 0) {
-            $mensaje .= ' Se omitieron ' . count($saltados) . ' ya pagados.';
+            $mensaje .= ' Se omitieron ' . count($saltados) . ' ya registrados.';
         }
         if ($estado === 'PENDIENTE') {
             $mensaje .= ' Quedan pendientes de verificación QR.';
@@ -280,15 +296,22 @@ class SocioController extends Controller
     
 
     public function confirmarPago($id_cuota) {
-        $cuota = CuotaSocio::findOrFail($id_cuota);
-        
-        if ($cuota->estado === 'CONFIRMADO') {
-            return back()->with('error', 'Este pago ya estaba confirmado.');
-        }
+        $confirmado = DB::transaction(function () use ($id_cuota) {
+            $cuota = CuotaSocio::lockForUpdate()->findOrFail($id_cuota);
 
-        $cuota->update(['estado' => 'CONFIRMADO']);
+            if ($cuota->estado === 'CONFIRMADO') {
+                return false;
+            }
 
-        return back()->with('success', 'Pago QR confirmado correctamente.');
+            $cuota->update(['estado' => 'CONFIRMADO']);
+
+            return true;
+        });
+
+        return back()->with(
+            'success',
+            $confirmado ? 'Pago QR confirmado correctamente.' : 'Este pago ya estaba confirmado.'
+        );
     }
 
     public function confirmarPendientes($id_socio) {
