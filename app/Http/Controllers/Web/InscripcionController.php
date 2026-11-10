@@ -1,0 +1,141 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\Inscripcion;
+use App\Models\Alumno;
+use App\Models\HorarioCurso;
+use App\Models\Pago;
+use App\Models\Parametro; // 🔥 IMPORTANTE
+use App\Events\InscripcionConfirmada;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+class InscripcionController extends Controller
+{
+    public function index() {
+        /** @var \App\Models\Usuario $user */
+        $user = Auth::user();
+        $query = Inscripcion::with(['alumno', 'horarioCurso.curso']);
+
+        if ($user->hasRole('Alumno')) {
+            $query->whereHas('alumno', fn($q) => $q->where('nombres', 'LIKE', '%' . $user->nombre . '%'));
+        } elseif ($user->hasRole('Socio/Instructor')) {
+            $query->whereHas('horarioCurso.curso', fn($q) => $q->where('id_usuario_instructor', $user->id_usuario));
+        }
+
+        $inscripciones = $query->orderBy('created_at', 'desc')->get();
+        return view('admin.inscripciones.index', compact('inscripciones'));
+    }
+
+    public function create($id_horario_curso) {
+        $horario = HorarioCurso::with('curso')->findOrFail($id_horario_curso);
+        // 🔥 Cargamos el QR oficial
+        $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
+        return view('admin.inscripciones.create', compact('horario', 'qrImage'));
+    }
+
+    public function store(Request $request) {
+        $request->validate([
+            'id_horario_curso' => 'required|exists:horario_cursos,id_horario_curso',
+            'nombres' => 'required|string|max:150',
+            'ci' => 'required|string|max:20',
+            'telefono' => 'required|string|max:20',
+            'edad' => 'required|integer|min:1',
+            'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
+            'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request) {
+                $alumno = Alumno::firstOrCreate(
+                    ['ci' => $request->ci],
+                    ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => $request->edad]
+                );
+
+                $horario = HorarioCurso::with('curso')->findOrFail($request->id_horario_curso);
+
+                $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
+                    ->where('id_horario_curso', $horario->id_horario_curso)->exists();
+                if ($yaInscrito) throw new \Exception('Este alumno ya se encuentra inscrito en este curso.');
+
+                $inscritos = Inscripcion::where('id_horario_curso', $horario->id_horario_curso)->count();
+                if ($inscritos >= $horario->cupo_maximo) throw new \Exception('El cupo máximo para este horario está lleno.');
+
+                $estadoInscripcion = 'PENDIENTE_PAGO';
+                if ($request->metodo_pago === 'EFECTIVO' || $request->has('confirmar_qr')) {
+                    $estadoInscripcion = 'CONFIRMADA';
+                }
+
+                $inscripcion = Inscripcion::create([
+                    'id_alumno' => $alumno->id_alumno,
+                    'id_horario_curso' => $horario->id_horario_curso,
+                    'estado' => $estadoInscripcion
+                ]);
+
+                // 🔥 REGISTRO DE PAGOS
+                $costoCurso = $horario->curso->costo;
+                $montoEfectivo = 0;
+                if ($request->metodo_pago === 'EFECTIVO') { $montoEfectivo = $costoCurso; }
+                elseif ($request->metodo_pago === 'MIXTO') { $montoEfectivo = $request->monto_efectivo; }
+
+                if ($montoEfectivo > 0) {
+                    Pago::create([
+                        'id_inscripcion' => $inscripcion->id_inscripcion,
+                        'monto' => $montoEfectivo,
+                        'metodo' => 'EFECTIVO',
+                        'estado' => 'CONFIRMADO',
+                    ]);
+                }
+
+                // 🔥 Si es QR y se confirma, guardamos el pago QR
+                if (in_array($request->metodo_pago, ['QR', 'MIXTO']) && $request->has('confirmar_qr')) {
+                    $saldoQR = $costoCurso - $montoEfectivo;
+                    if ($saldoQR > 0) {
+                        Pago::create([
+                            'id_inscripcion' => $inscripcion->id_inscripcion,
+                            'monto' => $saldoQR,
+                            'metodo' => 'QR',
+                            'estado' => 'CONFIRMADO',
+                        ]);
+                    }
+                }
+
+                if ($estadoInscripcion === 'CONFIRMADA') {
+                    event(new InscripcionConfirmada($inscripcion));
+                }
+            });
+
+            return redirect('/admin/inscripciones')->with('success', 'Inscripción registrada correctamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
+        }
+    }
+
+    public function confirmar($id) {
+        $inscripcion = Inscripcion::findOrFail($id);
+        if ($inscripcion->estado === 'CONFIRMADA') return back()->with('error', 'La inscripción ya está confirmada.');
+
+        DB::transaction(function () use ($inscripcion) {
+            $costoCurso = $inscripcion->horarioCurso->curso->costo;
+            $totalPagado = Pago::where('id_inscripcion', $inscripcion->id_inscripcion)->where('estado', 'CONFIRMADO')->sum('monto');
+            $saldo = $costoCurso - $totalPagado;
+
+            if ($saldo > 0) {
+                Pago::create([
+                    'id_inscripcion' => $inscripcion->id_inscripcion,
+                    'monto' => $saldo,
+                    'metodo' => 'QR',
+                    'estado' => 'CONFIRMADO',
+                ]);
+            }
+
+            $inscripcion->update(['estado' => 'CONFIRMADA']);
+            event(new InscripcionConfirmada($inscripcion));
+        });
+
+        return redirect('/admin/inscripciones')->with('success', 'Pago confirmado. Comisión calculada.');
+    }
+}
