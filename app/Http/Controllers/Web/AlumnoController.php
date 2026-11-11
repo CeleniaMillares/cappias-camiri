@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Events\InscripcionConfirmada;
 use App\Models\Alumno;
 use App\Models\Curso;
 use App\Models\HorarioCurso;
@@ -139,10 +140,18 @@ class AlumnoController extends Controller
                     throw new \RuntimeException('El monto en efectivo no puede superar el costo del curso.');
                 }
 
+                $pagoConfirmado = $request->metodo_pago === 'EFECTIVO'
+                    || (
+                        in_array($request->metodo_pago, ['QR', 'MIXTO'], true)
+                        && $request->boolean('confirmar_qr')
+                    );
+                $estadoInscripcion = $pagoConfirmado ? 'CONFIRMADA' : 'PENDIENTE_PAGO';
+                $estadoPago = $pagoConfirmado ? 'CONFIRMADO' : 'PENDIENTE';
+
                 $inscripcion = Inscripcion::create([
                     'id_alumno' => $alumno->id_alumno,
                     'id_horario_curso' => $horario->id_horario_curso,
-                    'estado' => 'PENDIENTE_PAGO',
+                    'estado' => $estadoInscripcion,
                 ]);
 
                 if ($request->metodo_pago === 'MIXTO') {
@@ -151,7 +160,7 @@ class AlumnoController extends Controller
                             'id_inscripcion' => $inscripcion->id_inscripcion,
                             'monto' => $montoEfectivo,
                             'metodo' => 'EFECTIVO',
-                            'estado' => 'PENDIENTE',
+                            'estado' => $estadoPago,
                         ]);
                     }
 
@@ -161,7 +170,7 @@ class AlumnoController extends Controller
                             'id_inscripcion' => $inscripcion->id_inscripcion,
                             'monto' => $montoQr,
                             'metodo' => 'QR',
-                            'estado' => 'PENDIENTE',
+                            'estado' => $estadoPago,
                         ]);
                     }
                 } else {
@@ -169,8 +178,12 @@ class AlumnoController extends Controller
                         'id_inscripcion' => $inscripcion->id_inscripcion,
                         'monto' => $costoCurso,
                         'metodo' => $request->metodo_pago,
-                        'estado' => 'PENDIENTE',
+                        'estado' => $estadoPago,
                     ]);
+                }
+
+                if ($pagoConfirmado) {
+                    event(new InscripcionConfirmada($inscripcion));
                 }
             });
 

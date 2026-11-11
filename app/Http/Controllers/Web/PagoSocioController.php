@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Usuario;
 use App\Models\Venta;
-use App\Models\Liquidacion;
+use App\Models\PagoSocio;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class LiquidacionController extends Controller
+class PagoSocioController extends Controller
 {
     // 1. Lista de socios con su saldo pendiente e historial de pagos
     public function index(Request $request) {
@@ -19,10 +19,10 @@ class LiquidacionController extends Controller
 
         // Si es Socio, solo ve su historial de pagos recibidos
         if ($user->hasRole('Socio/Instructor')) {
-            $liquidaciones = Liquidacion::where('id_usuario_socio', $user->id_usuario)
+            $pagos = PagoSocio::where('id_usuario_socio', $user->id_usuario)
                 ->orderBy('created_at', 'desc')
                 ->get();
-            return view('admin.liquidaciones.socio_index', compact('liquidaciones'));
+            return view('admin.pagos_socios.socio_index', compact('pagos'));
         }
 
         // ==== VISTA PARA LA DIRECTIVA ====
@@ -58,7 +58,7 @@ class LiquidacionController extends Controller
                 }
             }
 
-            $pagadoPorSocio = Liquidacion::whereIn('id_usuario_socio', $socioIds)
+            $pagadoPorSocio = PagoSocio::whereIn('id_usuario_socio', $socioIds)
                 ->where('estado', 'PAGADA')
                 ->selectRaw('id_usuario_socio, SUM(monto_neto) as total_pagado')
                 ->groupBy('id_usuario_socio')
@@ -83,7 +83,7 @@ class LiquidacionController extends Controller
         }
 
         // 2. Historial de pagos realizados (Filtrable por socio y por fechas)
-        $historial = Liquidacion::with('socio')
+        $historial = PagoSocio::with('socio')
             ->whereIn('estado', ['PAGADA', 'ANULADA'])
             ->when($buscar, function($q) use ($buscar) {
                 $q->whereHas('socio', function($q2) use ($buscar) {
@@ -99,7 +99,7 @@ class LiquidacionController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.liquidaciones.index', compact('saldos', 'historial', 'buscar', 'fechaInicio', 'fechaFin'));
+        return view('admin.pagos_socios.index', compact('saldos', 'historial', 'buscar', 'fechaInicio', 'fechaFin'));
     }
 
     // 2. Formulario para registrar un pago (total o parcial)
@@ -123,13 +123,13 @@ class LiquidacionController extends Controller
         $comisionPorc = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
         $netoGenerado = $bruto - ($bruto * $comisionPorc / 100);
         
-        $netoPagado = Liquidacion::where('id_usuario_socio', $id_usuario_socio)
+        $netoPagado = PagoSocio::where('id_usuario_socio', $id_usuario_socio)
             ->where('estado', 'PAGADA')
             ->sum('monto_neto');
 
         $saldoPendiente = round($netoGenerado - $netoPagado, 2);
 
-        return view('admin.liquidaciones.create', compact('socio', 'saldoPendiente', 'ventas', 'bruto', 'comisionPorc', 'netoGenerado'));
+        return view('admin.pagos_socios.create', compact('socio', 'saldoPendiente', 'ventas', 'bruto', 'comisionPorc', 'netoGenerado'));
     }
 
     // 3. Guardar el pago (parcial o total)
@@ -162,7 +162,7 @@ class LiquidacionController extends Controller
             }
 
             $netoGenerado = round($bruto - ($bruto * $comisionPorc / 100), 2);
-            $netoPagado = (float) Liquidacion::where('id_usuario_socio', $socio->id_usuario)
+            $netoPagado = (float) PagoSocio::where('id_usuario_socio', $socio->id_usuario)
                 ->where('estado', 'PAGADA')
                 ->sum('monto_neto');
             $saldoPendiente = round($netoGenerado - $netoPagado, 2);
@@ -179,8 +179,7 @@ class LiquidacionController extends Controller
             $montoBrutoAbono = round($montoNetoAbono / (1 - ($comisionPorc / 100)), 2);
             $comisionAbono = round($montoBrutoAbono - $montoNetoAbono, 2);
 
-            // Registramos el abono en la tabla de liquidaciones
-            Liquidacion::create([
+            PagoSocio::create([
                 'id_usuario_socio' => $socio->id_usuario,
                 'periodo_inicio' => now()->startOfMonth(),
                 'periodo_fin' => now(),
@@ -201,24 +200,24 @@ class LiquidacionController extends Controller
             ])->withInput();
         }
 
-        return redirect('/admin/liquidaciones')->with('success', 'Pago registrado correctamente.');
+        return redirect('/admin/pagos-socios')->with('success', 'Pago registrado correctamente.');
     }
 
     public function anular($id) {
         $anulada = DB::transaction(function () use ($id) {
-            $liquidacion = Liquidacion::whereKey($id)->lockForUpdate()->firstOrFail();
-            if ($liquidacion->estado !== 'PAGADA') {
+            $pago = PagoSocio::whereKey($id)->lockForUpdate()->firstOrFail();
+            if ($pago->estado !== 'PAGADA') {
                 return false;
             }
 
-            $liquidacion->update(['estado' => 'ANULADA']);
+            $pago->update(['estado' => 'ANULADA']);
             return true;
         });
 
         if (!$anulada) {
-            return back()->with('error', 'Solo se pueden anular liquidaciones pagadas.');
+            return back()->with('error', 'Solo se pueden anular pagos a socios pagados.');
         }
 
-        return back()->with('success', 'Liquidación anulada correctamente.');
+        return back()->with('success', 'Pago a socio anulado correctamente.');
     }
 }

@@ -30,7 +30,7 @@
             </div>
             <div>
                 <label class="block mb-2 font-semibold text-gray-700">Precio (Bs):</label>
-                <input type="number" step="0.01" name="precio" value="{{ $producto->precio }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="number" step="0.01" min="0.01" name="precio" value="{{ $producto->precio }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
             </div>
         </div>
 
@@ -56,11 +56,11 @@
         <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
                 <label class="block mb-2 font-semibold text-gray-700">Stock Actual:</label>
-                <input type="number" name="stock_actual" value="{{ $producto->stock_actual }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="number" min="0" name="stock_actual" value="{{ $producto->stock_actual }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
             </div>
             <div>
                 <label class="block mb-2 font-semibold text-gray-700">Stock Mínimo:</label>
-                <input type="number" name="stock_minimo" value="{{ $producto->stock_minimo }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="number" min="1" name="stock_minimo" value="{{ $producto->stock_minimo }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
             </div>
         </div>
 

@@ -82,6 +82,7 @@
                     <th class="p-3">Tipo</th>
                     <th class="p-3">Periodo</th>
                     <th class="p-3 text-right">Monto</th>
+                    <th class="p-3">Estado</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -91,9 +92,18 @@
                     <td class="p-3 font-bold">{{ $pago->tipo }}</td>
                     <td class="p-3">{{ $pago->periodo ?? '-' }}</td>
                     <td class="p-3 text-right font-bold text-green-600">Bs. {{ number_format($pago->monto, 2) }}</td>
+                    <td class="p-3">
+                        @if($pago->estado === 'CONFIRMADO')
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Pagado</span>
+                        @elseif($pago->estado === 'PENDIENTE')
+                            <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">Pendiente</span>
+                        @else
+                            <span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">{{ $pago->estado }}</span>
+                        @endif
+                    </td>
                 </tr>
                 @empty
-                <tr><td colspan="4" class="p-6 text-center text-gray-500">No hay pagos registrados.</td></tr>
+                <tr><td colspan="5" class="p-6 text-center text-gray-500">No hay pagos registrados.</td></tr>
                 @endforelse
             </tbody>
         </table>

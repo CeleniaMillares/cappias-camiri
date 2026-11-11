@@ -3,90 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - CAPPIAS Camiri</title>
+    <meta name="theme-color" content="#064e3b">
+    <title>Iniciar sesión | CAPPIAS Camiri</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Poppins', sans-serif; } </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', sans-serif; }
+        h1, h2 { font-family: 'Manrope', sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
+<body class="min-h-screen bg-slate-100 text-slate-800 antialiased">
+    <main class="flex min-h-screen items-stretch">
+        <aside class="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-green-950 via-green-900 to-slate-900 p-12 text-white md:flex md:flex-col md:justify-between lg:p-16">
+            <div class="absolute -right-32 -top-32 h-96 w-96 rounded-full border-[40px] border-white/5"></div>
+            <div class="absolute -bottom-40 -left-20 h-[30rem] w-[30rem] rounded-full border-[50px] border-green-400/10"></div>
 
-    <div class="bg-white rounded-2xl shadow-2xl flex w-full max-w-4xl mx-auto overflow-hidden m-4">
-        
-        <!-- Lado Izquierdo: Imagen y Branding -->
-        <div class="hidden md:flex md:w-1/2 bg-slate-900 relative items-center justify-center p-12 overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1000&auto=format&fit=crop" 
-                 class="absolute inset-0 w-full h-full object-cover opacity-20" alt="Cerámica">
-            <div class="relative z-10 text-center">
-                <i class="fas fa-leaf text-green-400 text-6xl mb-6"></i>
-                <h2 class="text-3xl font-bold text-white mb-4">CAPPIAS Camiri</h2>
-                <p class="text-gray-300">Portal de gestión para artesanos, instructores y alumnos. Impulsando el talento local.</p>
+            <a href="/" class="relative z-10 inline-flex w-fit items-center gap-3 text-white">
+                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-green-300">
+                    <i class="fa-solid fa-leaf text-xl" aria-hidden="true"></i>
+                </span>
+                <span class="font-display text-lg font-extrabold tracking-tight">CAPPIAS Camiri</span>
+            </a>
+
+            <div class="relative z-10 mx-auto w-full max-w-xl">
+                <div class="inline-flex rounded-2xl bg-white p-3 shadow-2xl">
+                    <img src="{{ asset('img/logo_cappias.png') }}" alt="Logo oficial de CAPPIAS Camiri" class="h-auto max-h-80 w-full max-w-sm object-contain">
+                </div>
+                <h1 class="mt-9 font-display text-4xl font-extrabold leading-tight lg:text-5xl">Sistema de Gestión <span class="text-green-300">CAPPIAS Camiri</span></h1>
+                <p class="mt-5 max-w-lg text-base leading-7 text-green-50/80">
+                    Portal para acompañar el trabajo de nuestros asociados, instructores y alumnos.
+                </p>
             </div>
-        </div>
 
-        <!-- Lado Derecho: Formulario -->
-        <div class="w-full md:w-1/2 p-8 md:p-12">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-slate-800">Bienvenido</h1>
-                <p class="text-gray-500 mt-2">Ingresa tus credenciales para acceder.</p>
-            </div>
+            <p class="relative z-10 text-xs font-medium tracking-wide text-white/50">Cámara Provincial de la Pequeña Industria, Artesanías y Servicios</p>
+        </aside>
 
-            @if(session('success'))
-                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-r-lg" role="status">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <!-- Errores -->
-            @if ($errors->any())
-                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg" role="alert">
-                    <p class="font-bold">Error</p>
-                    <p>{{ $errors->first() }}</p>
-                </div>
-            @endif
-
-            <form method="POST" action="/login">
-                @csrf
-                
-                <!-- Correo -->
-                <div class="mb-5">
-                    <label class="block text-gray-700 font-semibold mb-2">Correo Electrónico</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fas fa-envelope text-gray-400"></i>
-                        </div>
-                        <input type="email" name="correo" value="{{ old('correo') }}" required
-                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
-                            placeholder="admin@cappias.com">
-                    </div>
-                </div>
-
-                <!-- Contraseña -->
-                <div class="mb-6">
-                    <label class="block text-gray-700 font-semibold mb-2">Contraseña</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fas fa-lock text-gray-400"></i>
-                        </div>
-                        <input type="password" name="contrasena" required
-                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
-                            placeholder="••••••••">
-                    </div>
-                </div>
-
-                <!-- Botón -->
-                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition shadow-lg flex justify-center items-center gap-2">
-                    <i class="fas fa-sign-in-alt"></i> Ingresar al Sistema
-                </button>
-            </form>
-
-            <div class="mt-8 text-center">
-                <a href="/" class="text-sm text-gray-500 hover:text-green-600 transition">
-                    <i class="fas fa-arrow-left mr-1"></i> Volver a la página de inicio
+        <section class="flex w-full items-center justify-center px-5 py-10 md:w-1/2 sm:px-8">
+            <div class="w-full max-w-md">
+                <a href="/" class="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-green-800 md:hidden">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al inicio
                 </a>
-            </div>
-        </div>
-    </div>
 
+                <div class="mb-8 text-center md:text-left">
+                    <img src="{{ asset('img/logo_cappias.png') }}" alt="CAPPIAS Camiri" class="mx-auto mb-6 h-24 w-auto object-contain md:hidden">
+                    <p class="text-sm font-bold uppercase tracking-[.16em] text-green-700">Acceso al sistema</p>
+                    <h2 class="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Bienvenido</h2>
+                    <p class="mt-3 text-sm leading-6 text-slate-500">Ingresa tus credenciales para continuar.</p>
+                </div>
+
+                @if(session('success'))
+                    <div class="mb-6 flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 shadow-sm" role="status">
+                        <i class="fa-solid fa-circle-check mt-0.5 text-green-600" aria-hidden="true"></i>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                @endif
+
+                @if($errors->any())
+                    <div class="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm" role="alert">
+                        <i class="fa-solid fa-circle-exclamation mt-0.5 text-red-600" aria-hidden="true"></i>
+                        <div>
+                            <p class="font-bold">No se pudo iniciar sesión</p>
+                            <p class="mt-1">{{ $errors->first() }}</p>
+                        </div>
+                    </div>
+                @endif
+
+                <form method="POST" action="/login" class="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-8">
+                    @csrf
+
+                    <div>
+                        <label for="correo" class="mb-2 block text-sm font-bold text-slate-700">Correo electrónico</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                                <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+                            </span>
+                            <input id="correo" type="email" name="correo" value="{{ old('correo') }}" autocomplete="username" required autofocus
+                                class="w-full rounded-xl border border-slate-300 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-600 focus:bg-white focus:ring-4 focus:ring-green-100"
+                                placeholder="nombre@correo.com">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="contrasena" class="mb-2 block text-sm font-bold text-slate-700">Contraseña</label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                            </span>
+                            <input id="contrasena" type="password" name="contrasena" autocomplete="current-password" required
+                                class="w-full rounded-xl border border-slate-300 bg-slate-50 py-3.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-600 focus:bg-white focus:ring-4 focus:ring-green-100"
+                                placeholder="Ingresa tu contraseña">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-green-900/15 transition hover:-translate-y-0.5 hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-200">
+                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                        Ingresar
+                    </button>
+                </form>
+
+                <div class="mt-7 text-center">
+                    <a href="/" class="text-sm font-semibold text-slate-500 transition hover:text-green-800">
+                        <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i> Volver a la página de inicio
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>

@@ -75,6 +75,10 @@
                         <p class="text-[9px] mt-1">Contacte al Administrador</p>
                     </div>
                 @endif
+                <label class="flex items-center justify-center gap-2 mt-4 text-sm text-gray-700">
+                    <input type="checkbox" name="confirmar_qr" value="1" @checked(old('confirmar_qr'))>
+                    <span>Confirmo que el pago ya fue recibido</span>
+                </label>
                 <p class="text-xs text-blue-700 mt-2">El pago quedará pendiente de verificación por la Directiva.</p>
             </div>
             <button class="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700">Registrar Inscripción</button>

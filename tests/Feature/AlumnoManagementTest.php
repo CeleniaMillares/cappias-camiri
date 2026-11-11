@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\InscripcionConfirmada;
 use App\Models\Alumno;
 use App\Models\Curso;
 use App\Models\HorarioCurso;
@@ -11,6 +12,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class AlumnoManagementTest extends TestCase
@@ -77,6 +79,76 @@ class AlumnoManagementTest extends TestCase
             'metodo' => 'QR',
             'estado' => 'PENDIENTE',
         ]);
+    }
+
+    public function test_new_alumno_inscription_confirms_cash_and_checked_qr_payments(): void
+    {
+        [$directiva, , $horario] = $this->createFixtures();
+        Event::fake([InscripcionConfirmada::class]);
+
+        $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_horario_curso' => $horario->id_horario_curso,
+            'nombres' => 'Alumno Efectivo',
+            'ci' => '11110000',
+            'telefono' => '70000011',
+            'edad' => 20,
+            'metodo_pago' => 'EFECTIVO',
+        ])->assertRedirect('/admin/alumnos');
+
+        $inscripcionEfectivo = Inscripcion::whereHas('alumno', fn ($query) => $query->where('ci', '11110000'))
+            ->firstOrFail();
+        $this->assertSame('CONFIRMADA', $inscripcionEfectivo->estado);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcionEfectivo->id_inscripcion,
+            'metodo' => 'EFECTIVO',
+            'estado' => 'CONFIRMADO',
+        ]);
+        Event::assertDispatched(InscripcionConfirmada::class, 1);
+
+        $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_horario_curso' => $horario->id_horario_curso,
+            'nombres' => 'Alumno QR confirmado',
+            'ci' => '22220000',
+            'telefono' => '70000022',
+            'edad' => 20,
+            'metodo_pago' => 'QR',
+            'confirmar_qr' => '1',
+        ])->assertRedirect('/admin/alumnos');
+
+        $inscripcionQr = Inscripcion::whereHas('alumno', fn ($query) => $query->where('ci', '22220000'))
+            ->firstOrFail();
+        $this->assertSame('CONFIRMADA', $inscripcionQr->estado);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcionQr->id_inscripcion,
+            'metodo' => 'QR',
+            'estado' => 'CONFIRMADO',
+        ]);
+
+        $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_horario_curso' => $horario->id_horario_curso,
+            'nombres' => 'Alumno mixto confirmado',
+            'ci' => '33330000',
+            'telefono' => '70000033',
+            'edad' => 20,
+            'metodo_pago' => 'MIXTO',
+            'monto_efectivo' => 20,
+            'confirmar_qr' => '1',
+        ])->assertRedirect('/admin/alumnos');
+
+        $inscripcionMixta = Inscripcion::whereHas('alumno', fn ($query) => $query->where('ci', '33330000'))
+            ->firstOrFail();
+        $this->assertSame('CONFIRMADA', $inscripcionMixta->estado);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcionMixta->id_inscripcion,
+            'metodo' => 'EFECTIVO',
+            'estado' => 'CONFIRMADO',
+        ]);
+        $this->assertDatabaseHas('pagos', [
+            'id_inscripcion' => $inscripcionMixta->id_inscripcion,
+            'metodo' => 'QR',
+            'estado' => 'CONFIRMADO',
+        ]);
+        Event::assertDispatched(InscripcionConfirmada::class, 3);
     }
 
     public function test_alumno_can_update_profile_and_view_course_history(): void

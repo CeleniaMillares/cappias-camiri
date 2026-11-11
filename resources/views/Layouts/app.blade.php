@@ -74,7 +74,7 @@
             <a href="/admin/ventas" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/ventas*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-shopping-cart w-5 text-center"></i> Ventas
             </a>
-            <a href="/admin/liquidaciones" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/liquidaciones*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
+            <a href="/admin/pagos-socios" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/pagos-socios*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-hand-holding-usd w-5 text-center"></i> Pagos a Socios
             </a>
             <a href="/admin/reportes" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/reportes*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -98,7 +98,7 @@
             <a href="/admin/ventas" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/ventas*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-shopping-cart w-5 text-center"></i> Mis Ventas
             </a>
-            <a href="/admin/liquidaciones" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/liquidaciones*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
+            <a href="/admin/pagos-socios" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/pagos-socios*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-hand-holding-usd w-5 text-center"></i> Mis Pagos
             </a>
             <a href="/admin/mi-perfil-socio" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/mi-perfil-socio*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -130,6 +130,9 @@
             </a>
             <a href="/admin/auditoria" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/auditoria*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
                 <i class="fas fa-history w-5 text-center"></i> Auditoría
+            </a>
+            <a href="/admin/backups" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('admin/backups*') ? 'bg-blue-600 text-white font-semibold shadow-md' : 'hover:bg-slate-800 hover:text-white' }}">
+                <i class="fas fa-database w-5 text-center"></i> Respaldos
             </a>
             @endif
         </nav>

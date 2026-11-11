@@ -8,7 +8,7 @@ use App\Http\Controllers\Web\InscripcionController;
 use App\Http\Controllers\Web\AlumnoController;
 use App\Http\Controllers\Web\ProductoController;
 use App\Http\Controllers\Web\VentaController;
-use App\Http\Controllers\Web\LiquidacionController;
+use App\Http\Controllers\Web\PagoSocioController;
 use App\Http\Controllers\Web\FeriaController;
 use App\Http\Controllers\Web\ReporteController;
 use App\Http\Controllers\Web\AdminController;
@@ -18,6 +18,7 @@ use App\Http\Controllers\Web\PublicController;
 use App\Http\Controllers\Web\CheckoutController;
 use App\Http\Controllers\Web\PerfilController;
 use App\Http\Controllers\Web\PasswordResetController;
+use App\Http\Controllers\Web\BackupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +82,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::post('/parametros', [AdminController::class, 'updateParametros']);
         Route::post('/parametros/qr', [AdminController::class, 'uploadQr']); // 🔥 RUTA DEL QR AGREGADA
         Route::get('/auditoria', [AdminController::class, 'auditoria']);
+
+        // Respaldos
+        Route::get('/backups', [BackupController::class, 'index']);
+        Route::post('/backups', [BackupController::class, 'create']);
+        Route::get('/backups/download/{filename}', [BackupController::class, 'download'])
+            ->where('filename', '[A-Za-z0-9._-]+\.zip');
+        Route::delete('/backups/{filename}', [BackupController::class, 'destroy'])
+            ->where('filename', '[A-Za-z0-9._-]+\.zip');
     });
 
     /*
@@ -114,7 +123,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::get('/cursos', [CursoController::class, 'index']);
         Route::get('/productos', [ProductoController::class, 'index']);
         Route::get('/ventas', [VentaController::class, 'index']);
-        Route::get('/liquidaciones', [LiquidacionController::class, 'index']);
+        Route::get('/pagos-socios', [PagoSocioController::class, 'index']);
 
         // Inscripciones
         Route::get('/inscripciones/crear/{id_horario_curso}', [InscripcionController::class, 'create']);
@@ -189,10 +198,10 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         // Confirmar pago de cuota (QR pendiente)
         Route::post('/socios/confirmar-pago/{id_cuota}', [SocioController::class, 'confirmarPago']);
         
-        // --- Pagos a Socios (Liquidaciones) ---
-        Route::get('/liquidaciones/crear/{id_usuario_socio}', [LiquidacionController::class, 'create']);
-        Route::post('/liquidaciones/crear/{id_usuario_socio}', [LiquidacionController::class, 'store']);
-        Route::post('/liquidaciones/{id}/anular', [LiquidacionController::class, 'anular']);
+        // --- Pagos a Socios ---
+        Route::get('/pagos-socios/crear/{id_usuario_socio}', [PagoSocioController::class, 'create']);
+        Route::post('/pagos-socios/crear/{id_usuario_socio}', [PagoSocioController::class, 'store']);
+        Route::post('/pagos-socios/{id}/anular', [PagoSocioController::class, 'anular']);
 
         // --- Reportes ---
         Route::get('/reportes', [ReporteController::class, 'index']);

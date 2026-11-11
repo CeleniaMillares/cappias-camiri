@@ -54,7 +54,7 @@
                     
                     @if($cat->activo)
                         <!-- Botón Desactivar (Si está activa) -->
-                        <form method="POST" action="/admin/categorias/{{ $cat->id_categoria }}" onsubmit="return confirm('¿Desactivar esta categoría? Los productos asociados ya no se mostrarán en las ventas.');">
+                        <form method="POST" action="/admin/categorias/{{ $cat->id_categoria }}" onsubmit="return confirm('¿Desactivar esta categoría y todos sus productos activos?');">
                             @csrf 
                             @method('DELETE')
                             <button type="submit" class="text-red-600 hover:underline font-semibold">
@@ -86,5 +86,8 @@
             @endforelse
         </tbody>
     </table>
+</div>
+<div class="mt-4">
+    {{ $categorias->links() }}
 </div>
 @endsection

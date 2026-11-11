@@ -16,6 +16,9 @@
         @if ($errors->any())
             <div class="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">
                 <i class="fas fa-exclamation-circle mr-1"></i> {{ $errors->first() }}
+                @if($errors->has('correo') && !auth()->check())
+                    <a href="/login" class="underline font-bold ml-1">Inicia sesión aquí</a> para continuar.
+                @endif
             </div>
         @endif
 
@@ -34,7 +37,7 @@
                     @auth
                         <input type="email" name="correo" value="{{ Auth::user()->correo }}" class="w-full border p-2 rounded-lg bg-gray-100 text-gray-500" readonly>
                     @else
-                        <input type="email" name="correo" class="w-full border p-2 rounded-lg" required placeholder="tu@correo.com">
+                        <input type="email" name="correo" value="{{ old('correo') }}" class="w-full border p-2 rounded-lg" required placeholder="tu@correo.com">
                         <p class="text-xs text-gray-500 mt-1">Si ya tienes cuenta, usa tu correo registrado.</p>
                     @endauth
                 </div>

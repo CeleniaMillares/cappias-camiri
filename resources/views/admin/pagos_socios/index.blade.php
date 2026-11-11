@@ -19,7 +19,7 @@
 
 <!-- 🔍 BARRA DE FILTROS (Socio, Fecha Inicio, Fecha Fin) -->
 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form method="GET" action="/admin/liquidaciones" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+    <form method="GET" action="/admin/pagos-socios" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div class="md:col-span-2">
             <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar por Socio:</label>
             <input type="text" name="buscar" value="{{ $buscar ?? '' }}" placeholder="Ej: María, Pedro..." class="w-full border-gray-300 rounded-lg shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
@@ -36,7 +36,7 @@
             <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm h-[42px]">
                 <i class="fas fa-search mr-2"></i> Filtrar
             </button>
-            <a href="/admin/liquidaciones" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
+            <a href="/admin/pagos-socios" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
                 Limpiar
             </a>
         </div>
@@ -79,7 +79,7 @@
                         Bs. {{ number_format($item['saldo'], 2) }}
                     </td>
                     <td class="p-4 text-center">
-                        <a href="/admin/liquidaciones/crear/{{ $item['socio']->id_usuario }}" class="inline-block bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg hover:bg-green-600 hover:text-white transition font-semibold shadow-sm text-xs">
+                        <a href="/admin/pagos-socios/crear/{{ $item['socio']->id_usuario }}" class="inline-block bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg hover:bg-green-600 hover:text-white transition font-semibold shadow-sm text-xs">
                             <i class="fas fa-hand-holding-usd mr-1"></i> Pagar
                         </a>
                     </td>
@@ -144,8 +144,8 @@
                         </td>
                         <td class="p-4 text-center">
                             @if($pago->estado === 'PAGADA')
-                                <form method="POST" action="/admin/liquidaciones/{{ $pago->id_liquidacion }}/anular"
-                                      onsubmit="return confirm('¿Confirmas anular esta liquidación? El saldo volverá a estar pendiente.');">
+                                <form method="POST" action="/admin/pagos-socios/{{ $pago->id_pago_socio }}/anular"
+                                      onsubmit="return confirm('¿Confirmas anular este pago? El saldo volverá a estar pendiente.');">
                                     @csrf
                                     <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-semibold">
                                         Anular

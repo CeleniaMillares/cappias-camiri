@@ -58,10 +58,15 @@ class AdminController extends Controller
     public function asignarDirectiva($id_socio) {
         $socio = Socio::with('usuario')->findOrFail($id_socio);
         $rolDirectiva = Rol::where('nombre', 'Directiva')->first();
+        if ($socio->usuario->hasRole('Directiva')) {
+            return back()->with('error', 'El socio ya es Directiva.');
+        }
+
         $socio->usuario->roles()->syncWithoutDetaching([$rolDirectiva->id_rol]);
 
         \App\Models\Auditoria::create([
             'id_usuario' => Auth::user()->id_usuario,
+            'nombre_usuario' => Auth::user()->nombre ?? 'Sistema',
             'accion' => 'PROMOVER',
             'entidad' => 'Usuario: ' . $socio->usuario->nombre . ' a Directiva'
         ]);
@@ -72,10 +77,15 @@ class AdminController extends Controller
     public function retirarDirectiva($id_socio) {
         $socio = Socio::with('usuario')->findOrFail($id_socio);
         $rolDirectiva = Rol::where('nombre', 'Directiva')->first();
+        if (! $socio->usuario->hasRole('Directiva')) {
+            return back()->with('error', 'El socio no es Directiva.');
+        }
+
         $socio->usuario->roles()->detach($rolDirectiva->id_rol);
 
         \App\Models\Auditoria::create([
             'id_usuario' => Auth::user()->id_usuario,
+            'nombre_usuario' => Auth::user()->nombre ?? 'Sistema',
             'accion' => 'RETIRAR',
             'entidad' => 'Cargo de Directiva a: ' . $socio->usuario->nombre
         ]);
@@ -116,7 +126,7 @@ class AdminController extends Controller
     }
 
     public function auditoria() {
-        $registros = \App\Models\Auditoria::with('usuario')->orderBy('created_at', 'desc')->take(100)->get();
+        $registros = \App\Models\Auditoria::orderBy('created_at', 'desc')->take(100)->get();
         return view('admin.auditoria', compact('registros'));
     }
 

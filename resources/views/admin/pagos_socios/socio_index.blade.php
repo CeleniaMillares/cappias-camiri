@@ -19,16 +19,16 @@
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-            @forelse($liquidaciones as $liq)
+            @forelse($pagos as $pago)
             <tr class="hover:bg-gray-50 transition">
-                <td class="p-4">{{ $liq->created_at->format('d/m/Y H:i') }}</td>
-                <td class="p-4">Bs. {{ number_format($liq->monto_bruto, 2) }}</td>
-                <td class="p-4 text-red-600">- Bs. {{ number_format($liq->comision, 2) }}</td>
-                <td class="p-4 font-bold text-green-600">Bs. {{ number_format($liq->monto_neto, 2) }}</td>
-                <td class="p-4">{{ $liq->metodo ?? 'No especificado' }}</td>
+                <td class="p-4">{{ $pago->created_at->format('d/m/Y H:i') }}</td>
+                <td class="p-4">Bs. {{ number_format($pago->monto_bruto, 2) }}</td>
+                <td class="p-4 text-red-600">- Bs. {{ number_format($pago->comision, 2) }}</td>
+                <td class="p-4 font-bold text-green-600">Bs. {{ number_format($pago->monto_neto, 2) }}</td>
+                <td class="p-4">{{ $pago->metodo ?? 'No especificado' }}</td>
                 <td class="p-4">
-                    <span class="{{ $liq->estado === 'ANULADA' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }} px-2 py-1 rounded text-xs font-bold">
-                        {{ $liq->estado === 'ANULADA' ? 'ANULADA' : 'PAGADA' }}
+                    <span class="{{ $pago->estado === 'ANULADA' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }} px-2 py-1 rounded text-xs font-bold">
+                        {{ $pago->estado === 'ANULADA' ? 'ANULADA' : 'PAGADA' }}
                     </span>
                 </td>
             </tr>
@@ -36,7 +36,7 @@
             <tr>
                 <td colspan="6" class="p-8 text-center text-gray-500">
                     <i class="fas fa-receipt text-4xl text-gray-300 mb-3 block"></i>
-                    Aún no tienes pagos registrados.
+                    Aún no tienes pagos a socios registrados.
                 </td>
             </tr>
             @endforelse

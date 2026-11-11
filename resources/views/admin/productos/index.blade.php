@@ -76,6 +76,9 @@
             <tr class="hover:bg-gray-50 transition">
                 <!-- Columna de Producto: Muestra materiales/técnica para diferenciar homónimos -->
                 <td class="p-4">
+                    @if($prod->fotografia_url)
+                        <img src="{{ asset('storage/' . $prod->fotografia_url) }}" alt="{{ $prod->nombre }}" class="w-16 h-16 object-cover rounded mb-2">
+                    @endif
                     <p class="font-bold text-gray-800">{{ $prod->nombre }}</p>
                     @if($prod->materiales || $prod->tecnica)
                         <p class="text-xs text-gray-500 mt-1">
@@ -121,5 +124,8 @@
             @endforelse
         </tbody>
     </table>
+</div>
+<div class="mt-4">
+    {{ $productos->links() }}
 </div>
 @endsection

@@ -3,12 +3,13 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class CategoriaController extends Controller
 {
     public function index() {
-        $categorias = Categoria::all();
+        $categorias = Categoria::orderBy('nombre')->paginate(10)->appends(request()->query());
         return view('admin.categorias.index', compact('categorias'));
     }
 
@@ -43,19 +44,37 @@ class CategoriaController extends Controller
             'nombre' => 'required|string|max:100|unique:categorias,nombre,' . $id . ',id_categoria',
         ]);
 
-        // Actualizamos los campos y verificamos si el checkbox está marcado
-        $categoria->update([
-            'nombre' => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'activo' => $request->has('activo') ? true : false, // 🔥 Si está marcado es true, si no, false
-        ]);
+        $activa = $request->has('activo');
+        DB::transaction(function () use ($categoria, $request, $activa) {
+            $categoria->update([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'activo' => $activa,
+            ]);
+
+            if (!$activa) {
+                $this->desactivarProductosActivos($categoria);
+            }
+        });
 
         return redirect('/admin/categorias')->with('success', 'Categoría actualizada correctamente.');
     }
 
     public function destroy($id) {
-        $categoria = Categoria::findOrFail($id);
-        $categoria->update(['activo' => false]); 
+        DB::transaction(function () use ($id) {
+            $categoria = Categoria::findOrFail($id);
+            $categoria->update(['activo' => false]);
+            $this->desactivarProductosActivos($categoria);
+        });
+
         return redirect('/admin/categorias')->with('success', 'Categoría desactivada.');
+    }
+
+    private function desactivarProductosActivos(Categoria $categoria): void
+    {
+        $categoria->productos()
+            ->where('activo', true)
+            ->get()
+            ->each(fn ($producto) => $producto->update(['activo' => false]));
     }
 }

@@ -3,10 +3,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
-class Liquidacion extends Model {
+class PagoSocio extends Model {
     use HasUuids;
-    protected $table = 'liquidaciones';
-    protected $primaryKey = 'id_liquidacion';
+    protected $table = 'pagos_socios';
+    protected $primaryKey = 'id_pago_socio';
     public $incrementing = false;
     protected $keyType = 'string';
     protected $fillable = ['id_usuario_socio', 'periodo_inicio', 'periodo_fin', 'monto_bruto', 'comision', 'monto_neto', 'metodo', 'estado'];

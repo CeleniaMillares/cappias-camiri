@@ -20,9 +20,11 @@
                 </div>
                 <div>
                     @if($ins->estado === 'CONFIRMADA')
-                        <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Pagado</span>
+                        <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Confirmada</span>
+                    @elseif($ins->estado === 'PENDIENTE_PAGO')
+                        <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">Pendiente de Pago</span>
                     @else
-                        <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">Pendiente</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold">{{ $ins->estado }}</span>
                     @endif
                 </div>
             </div>

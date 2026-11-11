@@ -7,7 +7,8 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('auditorias', function (Blueprint $table) {
             $table->uuid('id_auditoria')->primary();
-            $table->uuid('id_usuario');
+            $table->uuid('id_usuario')->nullable();
+            $table->string('nombre_usuario', 150);
             $table->string('accion', 100);  
             $table->string('entidad', 100); 
             $table->timestamps();

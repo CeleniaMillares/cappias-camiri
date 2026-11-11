@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Categoria;
 use App\Models\DetalleVenta;
-use App\Models\Liquidacion;
+use App\Models\PagoSocio;
 use App\Models\Parametro;
 use App\Models\Producto;
 use App\Models\Rol;
@@ -14,7 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
-class LiquidacionWorkflowTest extends TestCase
+class PagoSocioWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -23,43 +23,43 @@ class LiquidacionWorkflowTest extends TestCase
         [$directiva, $socio, $otraSocio, $venta] = $this->createFixtures();
 
         $this->actingAs($directiva)
-            ->from('/admin/liquidaciones/crear/'.$socio->id_usuario)
-            ->post('/admin/liquidaciones/crear/'.$socio->id_usuario, [
+            ->from('/admin/pagos-socios/crear/'.$socio->id_usuario)
+            ->post('/admin/pagos-socios/crear/'.$socio->id_usuario, [
                 'monto_pagar' => 95,
                 'metodo' => 'QR',
             ])
-            ->assertRedirect('/admin/liquidaciones')
+            ->assertRedirect('/admin/pagos-socios')
             ->assertSessionHas('success');
 
-        $liquidacion = Liquidacion::where('id_usuario_socio', $socio->id_usuario)->firstOrFail();
-        $this->assertSame('QR', $liquidacion->metodo);
-        $this->assertEquals(100, (float) $liquidacion->monto_bruto);
-        $this->assertEquals(5, (float) $liquidacion->comision);
-        $this->assertSame('PAGADA', $liquidacion->estado);
+        $pago = PagoSocio::where('id_usuario_socio', $socio->id_usuario)->firstOrFail();
+        $this->assertSame('QR', $pago->metodo);
+        $this->assertEquals(100, (float) $pago->monto_bruto);
+        $this->assertEquals(5, (float) $pago->comision);
+        $this->assertSame('PAGADA', $pago->estado);
         $this->assertSame('PAGADA', $venta->fresh()->estado);
 
         $this->actingAs($directiva)
-            ->from('/admin/liquidaciones/crear/'.$socio->id_usuario)
-            ->post('/admin/liquidaciones/crear/'.$socio->id_usuario, [
+            ->from('/admin/pagos-socios/crear/'.$socio->id_usuario)
+            ->post('/admin/pagos-socios/crear/'.$socio->id_usuario, [
                 'monto_pagar' => 0.01,
                 'metodo' => 'EFECTIVO',
             ])
-            ->assertRedirect('/admin/liquidaciones/crear/'.$socio->id_usuario)
+            ->assertRedirect('/admin/pagos-socios/crear/'.$socio->id_usuario)
             ->assertSessionHasErrors('monto_pagar');
 
-        $this->assertSame(1, Liquidacion::where('id_usuario_socio', $socio->id_usuario)->count());
+        $this->assertSame(1, PagoSocio::where('id_usuario_socio', $socio->id_usuario)->count());
 
         $this->actingAs($directiva)
-            ->from('/admin/liquidaciones/crear/'.$socio->id_usuario)
-            ->post('/admin/liquidaciones/crear/'.$socio->id_usuario, [
+            ->from('/admin/pagos-socios/crear/'.$socio->id_usuario)
+            ->post('/admin/pagos-socios/crear/'.$socio->id_usuario, [
                 'monto_pagar' => '0.001',
                 'metodo' => 'EFECTIVO',
             ])
-            ->assertRedirect('/admin/liquidaciones/crear/'.$socio->id_usuario)
+            ->assertRedirect('/admin/pagos-socios/crear/'.$socio->id_usuario)
             ->assertSessionHasErrors('monto_pagar');
 
         $this->actingAs($directiva)
-            ->get('/admin/liquidaciones')
+            ->get('/admin/pagos-socios')
             ->assertOk()
             ->assertSee($otraSocio->nombre)
             ->assertSee('Bs. 190.00');
@@ -68,7 +68,7 @@ class LiquidacionWorkflowTest extends TestCase
     public function test_annulling_payment_restores_the_member_balance_and_keeps_auditable_record(): void
     {
         [$directiva, $socio, , $venta] = $this->createFixtures();
-        $liquidacion = Liquidacion::create([
+        $pago = PagoSocio::create([
             'id_usuario_socio' => $socio->id_usuario,
             'periodo_inicio' => now()->startOfMonth()->toDateString(),
             'periodo_fin' => now()->toDateString(),
@@ -80,15 +80,15 @@ class LiquidacionWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($directiva)
-            ->post("/admin/liquidaciones/{$liquidacion->id_liquidacion}/anular")
+            ->post("/admin/pagos-socios/{$pago->id_pago_socio}/anular")
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame('ANULADA', $liquidacion->fresh()->estado);
+        $this->assertSame('ANULADA', $pago->fresh()->estado);
         $this->assertSame('PAGADA', $venta->fresh()->estado);
 
         $this->actingAs($directiva)
-            ->get('/admin/liquidaciones')
+            ->get('/admin/pagos-socios')
             ->assertOk()
             ->assertSee('Anulada')
             ->assertSee('EFECTIVO')

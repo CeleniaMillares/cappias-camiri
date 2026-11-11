@@ -15,7 +15,7 @@ use App\Models\Inscripcion;
 use App\Models\Venta;
 use App\Models\DetalleVenta;
 use App\Models\Pago;
-use App\Models\Liquidacion;
+use App\Models\PagoSocio;
 use App\Models\Feria;
 use App\Models\CuotaSocio; // 🔥 Cambiado
 use App\Models\Parametro;
@@ -179,13 +179,14 @@ class DemoDataSeeder extends Seeder
             'subtotal' => 161.00
         ]);
 
-        Liquidacion::create([
+        PagoSocio::create([
             'id_usuario_socio' => $userSocio1->id_usuario,
             'periodo_inicio' => now()->startOfMonth(),
             'periodo_fin' => now(),
             'monto_bruto' => 500.00,
             'comision' => 25.00,
             'monto_neto' => 475.00,
+            'metodo' => 'EFECTIVO',
             'estado' => 'PAGADA'
         ]);
     }

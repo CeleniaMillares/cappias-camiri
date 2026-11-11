@@ -71,9 +71,15 @@ class VentaController extends Controller
                 $productosBloqueados = collect();
 
                 foreach ($productosAgrupados as $idProducto => $cantidadTotal) {
-                    $producto = Producto::whereKey($idProducto)
+                    $producto = Producto::where('activo', true)
+                        ->whereKey($idProducto)
                         ->lockForUpdate()
-                        ->firstOrFail();
+                        ->first();
+                    if (!$producto) {
+                        throw ValidationException::withMessages([
+                            'productos' => 'Uno de los productos seleccionados ya no está disponible.',
+                        ]);
+                    }
                     if ($producto->stock_actual < $cantidadTotal) {
                         throw ValidationException::withMessages([
                             'productos' => "Stock insuficiente para: {$producto->nombre}. Disponible: {$producto->stock_actual}, solicitado: {$cantidadTotal}",

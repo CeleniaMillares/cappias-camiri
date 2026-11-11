@@ -11,7 +11,7 @@ class RolSeeder extends Seeder
     {
         $roles = [
             ['nombre' => 'Administrador', 'descripcion' => 'Acceso total al sistema y configuraciones.'],
-            ['nombre' => 'Directiva', 'descripcion' => 'Gestión de productos, ventas, cursos y liquidaciones.'],
+            ['nombre' => 'Directiva', 'descripcion' => 'Gestión de productos, ventas, cursos y pagos a socios.'],
             ['nombre' => 'Socio/Instructor', 'descripcion' => 'Consulta sus productos y dicta cursos.'],
             ['nombre' => 'Alumno', 'descripcion' => 'Se inscribe en cursos y consulta su historial.'],
             ['nombre' => 'Cliente', 'descripcion' => 'Compra productos y realiza pagos por QR.'],

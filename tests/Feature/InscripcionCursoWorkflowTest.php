@@ -420,6 +420,34 @@ class InscripcionCursoWorkflowTest extends TestCase
             ->assertDontSee('Curso ajeno');
     }
 
+    public function test_student_profile_displays_unrecognized_enrollment_states_explicitly(): void
+    {
+        $studentRole = Rol::create(['nombre' => 'Alumno']);
+        $user = $this->createUser('alumno@example.test');
+        $user->roles()->attach($studentRole->id_rol);
+        $alumno = Alumno::create([
+            'id_usuario' => $user->id_usuario,
+            'nombres' => 'Alumno de prueba',
+            'ci' => '12345678',
+            'telefono' => '70000000',
+            'edad' => 20,
+        ]);
+        $instructor = $this->createUser('instructor@example.test');
+        $curso = $this->createCourse($instructor);
+        $horario = $this->createSchedule($curso);
+        Inscripcion::create([
+            'id_alumno' => $alumno->id_alumno,
+            'id_horario_curso' => $horario->id_horario_curso,
+            'estado' => 'RECHAZADA',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/mi-perfil')
+            ->assertOk()
+            ->assertSee('RECHAZADA')
+            ->assertDontSee('Pendiente de Pago');
+    }
+
     public function test_directiva_confirms_registered_payment_and_sees_payment_method_in_both_lists(): void
     {
         $directivaRole = Rol::create(['nombre' => 'Directiva']);

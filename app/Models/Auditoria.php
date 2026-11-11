@@ -15,7 +15,7 @@ class Auditoria extends Model
     protected $keyType = 'string';
     
     // Campos para registrar el evento
-    protected $fillable = ['id_usuario', 'accion', 'entidad'];
+    protected $fillable = ['id_usuario', 'nombre_usuario', 'accion', 'entidad'];
 
     /**
      * Relación: Una auditoría pertenece a un usuario.

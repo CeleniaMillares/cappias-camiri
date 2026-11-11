@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/liquidaciones" class="text-blue-600 hover:underline text-sm mb-2 inline-block"><i class="fas fa-arrow-left mr-1"></i> Volver a la lista</a>
+        <a href="/admin/pagos-socios" class="text-blue-600 hover:underline text-sm mb-2 inline-block"><i class="fas fa-arrow-left mr-1"></i> Volver a Pagos a Socios</a>
         <h1 class="text-2xl font-bold text-gray-800">Pagar a: {{ $socio->nombre }}</h1>
     </div>
 
@@ -58,7 +58,7 @@
     @endif
 
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <form method="POST" action="/admin/liquidaciones/crear/{{ $socio->id_usuario }}">
+        <form method="POST" action="/admin/pagos-socios/crear/{{ $socio->id_usuario }}">
             @csrf
             
             <div class="mb-6">

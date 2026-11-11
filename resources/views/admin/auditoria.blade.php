@@ -29,9 +29,9 @@
                     <td class="p-4">
                         <div class="flex items-center gap-2">
                             <div class="w-7 h-7 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center font-bold text-xs">
-                                {{ substr($reg->usuario->nombre ?? 'S', 0, 1) }}
+                                {{ substr($reg->nombre_usuario ?? 'Sistema', 0, 1) }}
                             </div>
-                            <span class="font-semibold text-gray-800">{{ $reg->usuario->nombre ?? 'Sistema' }}</span>
+                            <span class="font-semibold text-gray-800">{{ $reg->nombre_usuario ?? 'Sistema' }}</span>
                         </div>
                     </td>
                     

@@ -208,28 +208,36 @@ class CheckoutController extends Controller
     // CHECKOUT DE PRODUCTO (CLIENTE)
     // ==========================================
     public function createProducto($id_producto) {
-        $producto = Producto::findOrFail($id_producto);
+        $producto = Producto::where('activo', true)->findOrFail($id_producto);
         $qrImage = \App\Models\Parametro::where('clave', 'qr_image_url')->value('valor');
         
         return view('publico.checkout_producto', compact('producto', 'qrImage'));
     }
     public function storeProducto(Request $request, $id_producto) {
+        Producto::where('activo', true)->findOrFail($id_producto);
+
         $request->validate([
             'correo' => 'required|email',
             'nombres' => 'required|string|max:150',
             'metodo_pago' => 'required|in:EFECTIVO,QR',
             'cantidad' => 'required|integer|min:1',
+            'confirmar_qr' => 'sometimes|boolean',
         ]);
 
         $usuario = Usuario::where('correo', $request->correo)->first();
 
         if ($usuario && (!Auth::check() || Auth::user()->correo !== $request->correo)) {
-            return back()->withErrors(['correo' => 'Este correo ya está registrado. Inicia sesión o usa otro.'])->withInput();
+            return back()->withErrors([
+                'correo' => 'Este correo ya está registrado. Inicia sesión para continuar o usa otro correo.',
+            ])->withInput();
         }
 
         $nuevoUsuario = false;
         DB::transaction(function () use ($request, $id_producto, &$usuario, &$nuevoUsuario) {
-            $producto = Producto::whereKey($id_producto)->lockForUpdate()->firstOrFail();
+            $producto = Producto::where('activo', true)
+                ->whereKey($id_producto)
+                ->lockForUpdate()
+                ->firstOrFail();
             if ($producto->stock_actual < $request->cantidad) {
                 throw ValidationException::withMessages([
                     'cantidad' => 'Stock insuficiente para la cantidad solicitada.',
@@ -255,7 +263,8 @@ class CheckoutController extends Controller
             }
 
             $total = $producto->precio * $request->cantidad;
-            $estadoVenta = ($request->metodo_pago === 'EFECTIVO') ? 'PAGADA' : 'PENDIENTE_PAGO';
+            $pagoConfirmado = $request->metodo_pago === 'EFECTIVO'
+                || ($request->metodo_pago === 'QR' && $request->boolean('confirmar_qr'));
 
             // Creamos la venta usando un usuario "Directiva" genérico o el mismo cliente
             // (Para simplificar, asignamos la venta al primer usuario con rol Directiva)
@@ -267,7 +276,7 @@ class CheckoutController extends Controller
             $venta = Venta::create([
                 'id_usuario_directiva' => $directiva->id_usuario,
                 'total' => $total,
-                'estado' => $estadoVenta,
+                'estado' => $pagoConfirmado ? 'PAGADA' : 'PENDIENTE_PAGO',
             ]);
 
             DetalleVenta::create([
@@ -278,11 +287,11 @@ class CheckoutController extends Controller
                 'subtotal' => $total,
             ]);
 
-            if ($request->metodo_pago === 'EFECTIVO') {
+            if ($pagoConfirmado) {
                 Pago::create([
                     'id_venta' => $venta->id_venta,
                     'monto' => $total,
-                    'metodo' => 'EFECTIVO',
+                    'metodo' => $request->metodo_pago,
                     'estado' => 'CONFIRMADO',
                 ]);
                 event(new VentaConfirmada($venta));
@@ -293,6 +302,10 @@ class CheckoutController extends Controller
             Password::sendResetLink(['correo' => $usuario->correo]);
         }
 
-        return redirect('/')->with('success', '¡Compra realizada! Revisa tu correo para crear tu contraseña y ver tu perfil.');
+        $mensaje = $request->metodo_pago === 'QR' && !$request->boolean('confirmar_qr')
+            ? 'Compra registrada. La Directiva verificará tu pago para confirmarla.'
+            : '¡Compra realizada! Revisa tu correo para crear tu contraseña y ver tu perfil.';
+
+        return redirect('/')->with('success', $mensaje);
     }
 }

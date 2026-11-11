@@ -7,6 +7,8 @@ use App\Models\Producto;
 use App\Models\Categoria;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 
 class ProductoController extends Controller
 {
@@ -38,7 +40,7 @@ class ProductoController extends Controller
             $query->where('id_usuario_socio', $request->id_usuario_socio);
         }
 
-        $productos = $query->get();
+        $productos = $query->paginate(10)->appends($request->query());
 
         // Datos para los selectores de los filtros
         $categorias = \App\Models\Categoria::where('activo', true)->get();
@@ -60,27 +62,29 @@ class ProductoController extends Controller
 
     // 3. Guardar nuevo producto
     public function store(Request $request) {
-        $request->validate([
+        $data = $request->validate([
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'id_usuario_socio' => 'required|exists:usuarios,id_usuario',
             'nombre' => 'required|string|max:150',
-            'precio' => 'required|numeric|min:0',
+            'descripcion' => 'nullable|string',
+            'precio' => 'required|numeric|min:0.01',
+            'materiales' => 'nullable|string|max:255',
+            'tecnica' => 'nullable|string|max:255',
             'stock_actual' => 'required|integer|min:0',
             'stock_minimo' => 'required|integer|min:1',
+            'fotografia_url' => 'nullable|image|max:2048',
         ]);
 
-        Producto::create([
-            'id_categoria' => $request->id_categoria,
-            'id_usuario_socio' => $request->id_usuario_socio,
-            'nombre' => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'precio' => $request->precio,
-            'materiales' => $request->materiales,
-            'tecnica' => $request->tecnica,
-            'stock_actual' => $request->stock_actual,
-            'stock_minimo' => $request->stock_minimo,
-            'activo' => true,
-        ]);
+        if ($response = $this->validarCategoriaYSocio($request)) {
+            return $response;
+        }
+
+        if ($request->hasFile('fotografia_url')) {
+            $data['fotografia_url'] = $request->file('fotografia_url')->store('productos', 'public');
+        }
+        $data['activo'] = true;
+
+        Producto::create($data);
 
         return redirect('/admin/productos')->with('success', 'Producto registrado correctamente.');
     }
@@ -100,16 +104,33 @@ class ProductoController extends Controller
     public function update(Request $request, $id) {
         $producto = Producto::findOrFail($id);
         
-        $request->validate([
+        $data = $request->validate([
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'id_usuario_socio' => 'required|exists:usuarios,id_usuario',
             'nombre' => 'required|string|max:150',
-            'precio' => 'required|numeric|min:0',
+            'descripcion' => 'nullable|string',
+            'precio' => 'required|numeric|min:0.01',
+            'materiales' => 'nullable|string|max:255',
+            'tecnica' => 'nullable|string|max:255',
             'stock_actual' => 'required|integer|min:0',
             'stock_minimo' => 'required|integer|min:1',
+            'fotografia_url' => 'nullable|image|max:2048',
         ]);
 
-        $producto->update($request->all());
+        if ($response = $this->validarCategoriaYSocio($request)) {
+            return $response;
+        }
+
+        if ($request->hasFile('fotografia_url')) {
+            $imagenAnterior = $producto->fotografia_url;
+            $data['fotografia_url'] = $request->file('fotografia_url')->store('productos', 'public');
+        }
+
+        $producto->update($data);
+
+        if (isset($imagenAnterior)) {
+            Storage::disk('public')->delete($imagenAnterior);
+        }
         
         return redirect('/admin/productos')->with('success', 'Producto actualizado correctamente.');
     }
@@ -120,5 +141,24 @@ class ProductoController extends Controller
         $producto->update(['activo' => false]); // No lo borramos de la BD, solo lo ocultamos
         
         return redirect('/admin/productos')->with('success', 'Producto desactivado. Ya no aparecerá en las ventas.');
+    }
+
+    private function validarCategoriaYSocio(Request $request): ?RedirectResponse
+    {
+        $categoria = Categoria::findOrFail($request->id_categoria);
+        if (!$categoria->activo) {
+            return back()
+                ->withErrors(['id_categoria' => 'La categoría seleccionada está inactiva.'])
+                ->withInput();
+        }
+
+        $socio = Usuario::findOrFail($request->id_usuario_socio);
+        if (!$socio->hasRole('Socio/Instructor')) {
+            return back()
+                ->withErrors(['id_usuario_socio' => 'El usuario seleccionado no es un socio válido.'])
+                ->withInput();
+        }
+
+        return null;
     }
 }

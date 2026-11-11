@@ -280,11 +280,23 @@ class SocioMembresiaWorkflowTest extends TestCase
             'monto_efectivo' => 100,
             'fecha_pago' => '2026-11-10',
         ]);
+        CuotaSocio::create([
+            'id_socio' => $socio->id_socio,
+            'tipo' => 'MENSUALIDAD',
+            'metodo' => 'QR',
+            'estado' => 'PENDIENTE',
+            'periodo' => '2026-12',
+            'monto' => 50,
+            'monto_efectivo' => 0,
+            'fecha_pago' => '2026-11-10',
+        ]);
 
         $this->actingAs($socio->usuario)
             ->get('/admin/mi-perfil-socio')
             ->assertOk()
-            ->assertSee('MATRICULA');
+            ->assertSee('MATRICULA')
+            ->assertSee('Pagado')
+            ->assertSee('Pendiente');
     }
 
     public function test_members_index_renders_pending_payment_concepts_without_dynamic_array_mutation(): void
