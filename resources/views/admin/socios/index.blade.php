@@ -30,11 +30,11 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar Socio:</label>
             <input type="text" name="buscar" value="{{ $buscar ?? '' }}" placeholder="Nombre o CI del socio..." class="w-full border-gray-300 rounded-lg shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
         </div>
-        <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm h-[42px]">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500 h-[42px]">
             <i class="fas fa-search mr-2"></i> Filtrar
         </button>
-        <a href="/admin/socios" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
-            Limpiar
+        <a href="/admin/socios" class="inline-flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600 h-[42px]">
+            <i class="fas fa-times mr-2" aria-hidden="true"></i> Limpiar
         </a>
     </form>
 </div>
@@ -84,7 +84,7 @@
                 <!-- Acciones -->
                 <td class="p-4 flex flex-wrap gap-2 items-start">
                     
-                    <!-- 🔥 BOTÓN DE CONFIRMAR PAGO CON DETALLE -->
+                    <!-- Botón para confirmar pago con detalle -->
                     @if($socio->cuotasPendientes->isNotEmpty())
                         <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 min-w-[220px]">
                             <p class="text-[10px] text-yellow-800 font-bold uppercase tracking-wide mb-1">

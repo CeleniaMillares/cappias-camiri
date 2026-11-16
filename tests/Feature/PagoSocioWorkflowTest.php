@@ -3,7 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
+use App\Models\Alumno;
+use App\Models\Curso;
 use App\Models\DetalleVenta;
+use App\Models\HorarioCurso;
+use App\Models\Inscripcion;
+use App\Models\Pago;
 use App\Models\PagoSocio;
 use App\Models\Parametro;
 use App\Models\Producto;
@@ -35,6 +40,7 @@ class PagoSocioWorkflowTest extends TestCase
         $this->assertSame('QR', $pago->metodo);
         $this->assertEquals(100, (float) $pago->monto_bruto);
         $this->assertEquals(5, (float) $pago->comision);
+        $this->assertSame('VENTAS', $pago->origen);
         $this->assertSame('PAGADA', $pago->estado);
         $this->assertSame('PAGADA', $venta->fresh()->estado);
 
@@ -75,6 +81,7 @@ class PagoSocioWorkflowTest extends TestCase
             'monto_bruto' => 100,
             'comision' => 5,
             'monto_neto' => 95,
+            'origen' => 'VENTAS',
             'metodo' => 'EFECTIVO',
             'estado' => 'PAGADA',
         ]);
@@ -93,6 +100,116 @@ class PagoSocioWorkflowTest extends TestCase
             ->assertSee('Anulada')
             ->assertSee('EFECTIVO')
             ->assertSee($socio->nombre);
+    }
+
+    public function test_course_income_is_added_to_the_member_balance_after_cappias_commission(): void
+    {
+        [$directiva, $socio] = $this->createFixtures();
+        PagoSocio::create([
+            'id_usuario_socio' => $socio->id_usuario,
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
+            'periodo_fin' => now()->toDateString(),
+            'monto_bruto' => 100,
+            'comision' => 5,
+            'monto_neto' => 95,
+            'origen' => 'VENTAS',
+            'metodo' => 'EFECTIVO',
+            'estado' => 'PAGADA',
+        ]);
+
+        $curso = Curso::create([
+            'id_usuario_instructor' => $socio->id_usuario,
+            'nombre' => 'Curso del instructor',
+            'costo' => 100,
+            'activo' => true,
+        ]);
+        $horario = HorarioCurso::create([
+            'id_curso' => $curso->id_curso,
+            'dia_semana' => 'Sábado',
+            'hora_inicio' => '09:00',
+            'hora_fin' => '12:00',
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->addMonth()->toDateString(),
+            'cupo_maximo' => 10,
+        ]);
+        $alumno = Alumno::create([
+            'nombres' => 'Alumno de prueba',
+            'ci' => '12345678',
+            'telefono' => '70000000',
+            'edad' => 20,
+        ]);
+        $inscripcion = Inscripcion::create([
+            'id_alumno' => $alumno->id_alumno,
+            'id_horario_curso' => $horario->id_horario_curso,
+            'comision_cappias' => 20,
+            'comision_calculada' => true,
+            'estado' => 'CONFIRMADA',
+        ]);
+        Pago::create([
+            'id_inscripcion' => $inscripcion->id_inscripcion,
+            'monto' => 100,
+            'metodo' => 'QR',
+            'estado' => 'CONFIRMADO',
+        ]);
+
+        $this->actingAs($directiva)
+            ->get('/admin/pagos-socios')
+            ->assertOk()
+            ->assertSee('Bs. 80.00');
+
+        $this->actingAs($directiva)
+            ->get("/admin/pagos-socios/crear/{$socio->id_usuario}")
+            ->assertOk()
+            ->assertSee('Curso Del Instructor')
+            ->assertSee('Saldo Pendiente a Pagar:')
+            ->assertSee('Bs. 80.00');
+
+        $this->actingAs($directiva)
+            ->post("/admin/pagos-socios/crear/{$socio->id_usuario}", [
+                'monto_pagar' => 40,
+                'metodo' => 'EFECTIVO',
+            ])
+            ->assertRedirect('/admin/pagos-socios')
+            ->assertSessionHas('success');
+
+        $abonoParcial = PagoSocio::where('id_usuario_socio', $socio->id_usuario)
+            ->where('estado', 'PAGADA')
+            ->where('monto_bruto_cursos', 50)
+            ->firstOrFail();
+        $this->assertEquals(50, (float) $abonoParcial->monto_bruto_cursos);
+        $this->assertEquals(10, (float) $abonoParcial->comision_cursos);
+        $this->assertEquals(0, (float) $abonoParcial->monto_bruto_ventas);
+        $this->assertSame('CURSOS', $abonoParcial->origen);
+
+        $this->actingAs($directiva)
+            ->post("/admin/pagos-socios/{$abonoParcial->id_pago_socio}/anular")
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->actingAs($directiva)
+            ->get('/admin/pagos-socios')
+            ->assertOk()
+            ->assertSee('Bs. 80.00');
+
+        $this->actingAs($directiva)
+            ->post("/admin/pagos-socios/crear/{$socio->id_usuario}", [
+                'monto_pagar' => 80,
+                'metodo' => 'EFECTIVO',
+            ])
+            ->assertRedirect('/admin/pagos-socios')
+            ->assertSessionHas('success');
+
+        $pagoSocio = PagoSocio::where('id_usuario_socio', $socio->id_usuario)
+            ->where('estado', 'PAGADA')
+            ->where('monto_bruto_cursos', 100)
+            ->firstOrFail();
+        $this->assertEquals(100, (float) $pagoSocio->monto_bruto);
+        $this->assertEquals(20, (float) $pagoSocio->comision);
+        $this->assertEquals(80, (float) $pagoSocio->monto_neto);
+        $this->assertEquals(100, (float) $pagoSocio->monto_bruto_cursos);
+        $this->assertEquals(20, (float) $pagoSocio->comision_cursos);
+        $this->assertEquals(0, (float) $pagoSocio->monto_bruto_ventas);
+        $this->assertSame('CURSOS', $pagoSocio->origen);
     }
 
     private function createFixtures(): array

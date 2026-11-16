@@ -81,7 +81,7 @@
                     <td class="p-4">
                         <div class="flex justify-center gap-3">
                             <!-- Botón Editar -->
-                            <a href="/admin/usuarios/{{ $user->id_usuario }}/editar" class="text-blue-600 hover:text-blue-800 font-semibold" title="Editar">
+                            <a href="/admin/usuarios/{{ $user->id_usuario }}/editar" class="inline-flex items-center justify-center rounded-lg bg-blue-600 p-2 text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500" title="Editar" aria-label="Editar usuario">
                                 <i class="fas fa-edit"></i>
                             </a>
                             
@@ -90,7 +90,7 @@
                             <form method="POST" action="/admin/usuarios/{{ $user->id_usuario }}" onsubmit="return confirm('¿Seguro que deseas desactivar a este usuario?');" class="inline">
                                 @csrf 
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold" title="Desactivar">
+                                <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-red-600 p-2 text-white shadow-sm transition-colors duration-200 hover:bg-red-700" title="Desactivar" aria-label="Desactivar usuario">
                                     <i class="fas fa-ban"></i>
                                 </button>
                             </form>

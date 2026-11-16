@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crear contraseña</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @include('partials.theme-head')
 </head>
 <body class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    @include('partials.theme-toggle')
     <main class="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
         <h1 class="mb-2 text-2xl font-bold text-gray-800">Crear contraseña</h1>
         <p class="mb-6 text-sm text-gray-600">Define una contraseña para ingresar a tu cuenta CAPPIAS.</p>
@@ -35,8 +36,8 @@
                 <input id="password_confirmation" type="password" name="password_confirmation" required minlength="8"
                     class="w-full rounded-lg border p-2">
             </div>
-            <button type="submit" class="w-full rounded-lg bg-blue-600 py-3 font-bold text-white hover:bg-blue-700">
-                Guardar contraseña
+            <button type="submit" class="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-green-700">
+                <i class="fas fa-save mr-2" aria-hidden="true"></i> Guardar contraseña
             </button>
         </form>
     </main>

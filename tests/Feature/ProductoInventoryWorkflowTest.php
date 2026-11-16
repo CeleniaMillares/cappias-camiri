@@ -62,6 +62,27 @@ class ProductoInventoryWorkflowTest extends TestCase
         Storage::disk('public')->assertExists($rutaNueva);
     }
 
+    public function test_stock_can_be_added_without_overwriting_the_product_form_values(): void
+    {
+        $producto = $this->createProduct('Producto para reponer');
+
+        $this->from('/admin/productos')->post("/admin/productos/{$producto->id_producto}/stock", [
+            'cantidad' => 3,
+        ])->assertRedirect('/admin/productos')
+            ->assertSessionHas('success');
+
+        $this->assertSame(11, (int) $producto->fresh()->stock_actual);
+
+        $this->from('/admin/productos')
+            ->post("/admin/productos/{$producto->id_producto}/stock", [
+                'cantidad' => 0,
+            ])
+            ->assertRedirect('/admin/productos')
+            ->assertSessionHasErrors('cantidad');
+
+        $this->assertSame(11, (int) $producto->fresh()->stock_actual);
+    }
+
     public function test_product_rejects_zero_price_and_non_image_or_oversized_photos(): void
     {
         $this->from('/admin/productos/crear')

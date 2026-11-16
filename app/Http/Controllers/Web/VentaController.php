@@ -9,6 +9,7 @@ use App\Models\Feria;
 use App\Models\DetalleVenta;
 use App\Models\Pago;
 use App\Models\Parametro; // 🔥 IMPORTANTE
+use App\Support\InsensitiveSearch;
 use App\Events\VentaConfirmada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,7 +35,7 @@ class VentaController extends Controller
             elseif ($request->origen === 'feria') $query->whereNotNull('id_feria');
         }
         if ($request->filled('producto')) {
-            $query->whereHas('detalles.producto', fn($q) => $q->where('nombre', 'LIKE', '%' . $request->producto . '%'));
+            $query->whereHas('detalles.producto', fn($q) => InsensitiveSearch::whereContains($q, 'nombre', $request->producto));
         }
 
         $ventas = $query->orderBy('created_at', 'desc')->get();

@@ -22,4 +22,16 @@ class Socio extends Model
    public function cuotas() {
         return $this->hasMany(CuotaSocio::class, 'id_socio', 'id_socio');
     }
+
+    public function ferias()
+    {
+        return $this->belongsToMany(
+            Feria::class,
+            'feria_socio',
+            'id_socio',
+            'id_feria',
+            'id_socio',
+            'id_feria'
+        )->withPivot('estado')->withTimestamps();
+    }
 }

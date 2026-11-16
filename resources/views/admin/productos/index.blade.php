@@ -40,11 +40,11 @@
                 @endforeach
             </select>
         </div>
-        <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm h-[42px]">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500 h-[42px]">
             <i class="fas fa-search mr-2"></i> Filtrar
         </button>
-        <a href="/admin/productos" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
-            Limpiar
+        <a href="/admin/productos" class="inline-flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600 h-[42px]">
+            <i class="fas fa-times mr-2" aria-hidden="true"></i> Limpiar
         </a>
     </form>
 </div>
@@ -103,14 +103,19 @@
 
                 <!-- Acciones exclusivas de la Directiva -->
                 @if(Auth::user()->hasRole('Directiva'))
-                <td class="p-4 flex gap-3 items-center">
-                    <a href="/admin/productos/{{ $prod->id_producto }}/editar" class="text-blue-600 hover:underline font-semibold">Editar</a>
+                <td class="p-4">
+                    <div class="flex flex-wrap gap-2 items-center">
+                    <button type="button" data-stock-open data-product-id="{{ $prod->id_producto }}" data-product-name="{{ $prod->nombre }}" data-product-stock="{{ $prod->stock_actual }}" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Añadir Stock
+                    </button>
+                    <a href="/admin/productos/{{ $prod->id_producto }}/editar" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500"><i class="fas fa-edit" aria-hidden="true"></i> Editar</a>
                     
                     <form method="POST" action="/admin/productos/{{ $prod->id_producto }}" onsubmit="return confirm('¿Desactivar este producto? Ya no aparecerá en las ventas.');">
                         @csrf 
                         @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:underline font-semibold">Desactivar</button>
+                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700"><i class="fas fa-ban" aria-hidden="true"></i> Desactivar</button>
                     </form>
+                    </div>
                 </td>
                 @endif
             </tr>
@@ -128,4 +133,52 @@
 <div class="mt-4">
     {{ $productos->links() }}
 </div>
+
+@if(Auth::user()->hasRole('Directiva'))
+<dialog id="stock-modal" class="w-full max-w-md rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/60 dark:bg-cappias-surface">
+    <div class="p-6">
+        <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+                <h2 id="stock-modal-title" class="text-lg font-bold text-gray-800">Añadir Stock</h2>
+                <p id="stock-product-name" class="mt-1 text-sm text-gray-500"></p>
+                <p id="stock-current" class="mt-1 text-xs text-gray-500"></p>
+            </div>
+            <button type="button" data-stock-close class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Cerrar">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+        <form id="stock-form" method="POST">
+            @csrf
+            <label for="stock-quantity" class="mb-2 block text-sm font-semibold text-gray-700">Cantidad a sumar</label>
+            <input id="stock-quantity" type="number" name="cantidad" min="1" step="1" value="1" required class="mb-5 w-full rounded-lg border p-3">
+            <div class="flex justify-end gap-3">
+                <button type="button" data-stock-close class="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancelar</button>
+                <button type="submit" class="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white transition hover:bg-green-700">Guardar Stock</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+<script>
+    (function () {
+        const modal = document.getElementById('stock-modal');
+        const form = document.getElementById('stock-form');
+
+        document.querySelectorAll('[data-stock-open]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                form.action = '/admin/productos/' + encodeURIComponent(button.dataset.productId) + '/stock';
+                document.getElementById('stock-product-name').textContent = button.dataset.productName;
+                document.getElementById('stock-current').textContent = 'Stock actual: ' + button.dataset.productStock;
+                document.getElementById('stock-quantity').value = '1';
+                modal.showModal();
+            });
+        });
+
+        document.querySelectorAll('[data-stock-close]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                modal.close();
+            });
+        });
+    })();
+</script>
+@endif
 @endsection

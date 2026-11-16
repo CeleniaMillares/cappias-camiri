@@ -2,6 +2,9 @@
 
 @section('content')
 <div class="max-w-2xl mx-auto">
+    <a href="/admin/alumnos" class="mb-4 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+        <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver a Alumnos
+    </a>
     <h1 class="text-2xl font-bold mb-2">Inscribir Alumno</h1>
     
     <!-- Tarjeta del Curso -->
@@ -36,7 +39,7 @@
             </div>
             <div>
                 <label class="block mb-1 font-semibold text-gray-700">CI:</label>
-                <input type="text" name="ci" value="{{ old('ci') }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="text" name="ci" value="{{ old('ci') }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required minlength="6" maxlength="13" pattern="[0-9]{6,10}(-[A-Za-z0-9]{1,2})?">
             </div>
             <div>
                 <label class="block mb-1 font-semibold text-gray-700">Edad:</label>
@@ -44,7 +47,7 @@
             </div>
             <div class="col-span-2">
                 <label class="block mb-1 font-semibold text-gray-700">Teléfono:</label>
-                <input type="text" name="telefono" value="{{ old('telefono') }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="text" name="telefono" value="{{ old('telefono') }}" class="w-full border-gray-300 border p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500" required inputmode="numeric" minlength="7" maxlength="8" pattern="[0-9]{7,8}">
             </div>
         </div>
 

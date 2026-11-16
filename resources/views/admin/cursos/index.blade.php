@@ -65,23 +65,23 @@
                         <i class="fas fa-users"></i> Alumnos
                     </a>
 
-                    <!-- Botón para inscribir un alumno (Para Directiva y Socio) -->
-                    @if($curso->horarios->isNotEmpty())
-                    <a href="/admin/inscripciones/crear/{{ $curso->horarios->first()->id_horario_curso }}" class="text-green-600 hover:underline font-semibold">
-                        <i class="fas fa-user-plus"></i> Inscribir
+                    <!-- Solo la Directiva puede inscribir alumnos -->
+                    @if(Auth::user()->hasRole('Directiva') && $curso->horarios->isNotEmpty())
+                    <a href="/admin/alumnos/inscribir?id_curso={{ urlencode($curso->id_curso) }}" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500">
+                        <i class="fas fa-user-plus" aria-hidden="true"></i> Inscribir
                     </a>
                     @endif
 
                     <!-- Botones exclusivos de la Directiva -->
                     @if(Auth::user()->hasRole('Directiva'))
-                    <a href="/admin/cursos/{{ $curso->id_curso }}/editar" class="text-blue-600 hover:underline font-semibold">
-                        Editar
+                    <a href="/admin/cursos/{{ $curso->id_curso }}/editar" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500">
+                        <i class="fas fa-edit" aria-hidden="true"></i> Editar
                     </a>
                     
                     <form method="POST" action="/admin/cursos/{{ $curso->id_curso }}" onsubmit="return confirm('¿Desactivar este curso? Ya no aparecerá para nuevas inscripciones.');">
                         @csrf 
                         @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:underline font-semibold">Desactivar</button>
+                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700"><i class="fas fa-ban" aria-hidden="true"></i> Desactivar</button>
                     </form>
                     @endif
                 </td>

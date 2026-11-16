@@ -8,9 +8,11 @@ use App\Models\Socio;
 use App\Models\Rol;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
@@ -20,13 +22,13 @@ class AdminController extends Controller
     }
 
     public function createUsuario() {
-        $roles = Rol::whereIn('nombre', ['Administrador', 'Alumno', 'Cliente'])->get();
+        $roles = Rol::whereIn('nombre', ['Administrador', 'Cliente'])->get();
         return view('admin.crear_usuario', compact('roles'));
     }
 
     public function storeUsuario(Request $request) {
         $request->validate([
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'correo' => 'required|email|unique:usuarios,correo',
             'contrasena' => 'required|min:6',
             'roles' => 'required|array'
@@ -99,9 +101,44 @@ class AdminController extends Controller
     }
 
     public function updateParametros(Request $request) {
-        foreach($request->parametros as $id => $valor) {
-            Parametro::where('id_parametro', $id)->update(['valor' => $valor]);
+        $request->validate([
+            'parametros' => ['required', 'array', 'min:1'],
+        ]);
+
+        $valores = $request->input('parametros');
+        $parametros = Parametro::whereIn('id_parametro', array_keys($valores))
+            ->get()
+            ->keyBy('id_parametro');
+
+        if ($parametros->count() !== count($valores)) {
+            throw ValidationException::withMessages([
+                'parametros' => 'Uno o más parámetros enviados no son válidos.',
+            ]);
         }
+
+        $reglas = [];
+        foreach ($parametros as $id => $parametro) {
+            $campo = "parametros.$id";
+
+            if (in_array($parametro->clave, ['comision_venta', 'comision_curso', 'comision_excepcion'], true)) {
+                $reglas[$campo] = ['required', 'numeric', 'min:0', 'max:100'];
+            } elseif (in_array($parametro->clave, ['monto_inscripcion', 'monto_mensualidad'], true)) {
+                $reglas[$campo] = ['required', 'numeric', 'min:0.01'];
+            } elseif (in_array($parametro->clave, ['stock_minimo', 'cupo_minimo', 'cupo_maximo'], true)) {
+                $reglas[$campo] = ['required', 'integer', 'min:0'];
+            } else {
+                $reglas[$campo] = ['required', 'string', 'max:255'];
+            }
+        }
+
+        $validados = $request->validate($reglas);
+
+        DB::transaction(function () use ($parametros, $validados) {
+            foreach ($parametros as $id => $parametro) {
+                $parametro->update(['valor' => $validados['parametros'][$id]]);
+            }
+        });
+
         return redirect('/admin/parametros')->with('success', 'Parámetros actualizados correctamente.');
     }
 
@@ -132,14 +169,14 @@ class AdminController extends Controller
 
     public function editUsuario(string $id) {
         $usuario = Usuario::with('roles')->findOrFail($id);
-        $roles = Rol::whereIn('nombre', ['Administrador', 'Directiva', 'Alumno', 'Cliente'])->get();
+        $roles = Rol::whereIn('nombre', ['Administrador', 'Directiva', 'Cliente'])->get();
         return view('admin.editar_usuario', compact('usuario', 'roles'));
     }
 
     public function updateUsuario(Request $request, string $id) {
         $usuario = Usuario::findOrFail($id);
         $request->validate([
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'correo' => 'required|email|unique:usuarios,correo,' . $id . ',id_usuario',
             'roles' => 'required|array'
         ]);

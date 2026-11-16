@@ -2,6 +2,9 @@
 
 @section('content')
 <div class="max-w-5xl mx-auto">
+    <a href="/admin/ventas" class="mb-4 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+        <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver a Ventas
+    </a>
     <h1 class="text-2xl font-bold mb-6 text-gray-800">Registrar Nueva Venta</h1>
 
     @if ($errors->any())
@@ -48,12 +51,12 @@
                 </div>
                 <div class="md:col-span-1 flex items-end gap-2">
                     <div class="w-full text-center font-bold text-gray-700 subtotal-display bg-white p-2 rounded border border-gray-200 text-sm">Bs. 0</div>
-                    <button type="button" onclick="eliminarFila(this)" class="text-red-500 hover:text-red-700 p-2 hidden"><i class="fas fa-trash"></i></button>
+                    <button type="button" onclick="eliminarFila(this)" class="bg-red-600 text-white hover:bg-red-700 p-2 hidden" title="Eliminar producto" aria-label="Eliminar producto"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
             </div>
         </div>
 
-        <button type="button" onclick="agregarProducto()" class="text-blue-600 text-sm mb-6 hover:underline font-semibold bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+        <button type="button" onclick="agregarProducto()" class="bg-green-600 text-white text-sm mb-6 hover:bg-green-700 px-4 py-2">
             <i class="fas fa-plus-circle mr-1"></i> Agregar otro producto
         </button>
 
@@ -123,11 +126,41 @@
 <style>
     .select2-container .select2-selection--single { height: 42px !important; border: 1px solid #d1d5db !important; border-radius: 0.5rem !important; padding-top: 5px; }
     .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px !important; }
+    html.dark .select2-container--default .select2-selection--single,
+    html.dark .select2-dropdown {
+        background-color: #1e293b !important;
+        border-color: #475569 !important;
+    }
+    html.dark .select2-container--default .select2-selection--single .select2-selection__rendered,
+    html.dark .select2-container--default .select2-selection--single .select2-selection__placeholder,
+    html.dark .select2-results__option {
+        color: #f1f5f9 !important;
+    }
+    html.dark .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #1e40af !important;
+        color: #ffffff !important;
+    }
+    html.dark .select2-search--dropdown .select2-search__field {
+        background-color: #0f172a !important;
+        border-color: #475569 !important;
+        color: #f8fafc !important;
+    }
+    html.dark .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-top-color: #cbd5e1 !important;
+    }
 </style>
 
 <script>
-    function inicializarSelect2() {
-        $('.product-select').select2({ placeholder: "Escriba el nombre...", allowClear: true });
+    function inicializarSelect2(root = document) {
+        $(root).find('.product-select').each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    placeholder: "Escriba el nombre...",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        });
     }
 
     function autocompletarDatos(selectElement) {
@@ -144,10 +177,24 @@
     let contador = 1;
     function agregarProducto() {
         const container = document.getElementById('productos-container');
-        const fila = document.querySelector('.producto-row').cloneNode(true);
+        const plantilla = document.querySelector('.producto-row');
+        const selectPlantilla = plantilla.querySelector('.product-select');
+        if ($(selectPlantilla).hasClass('select2-hidden-accessible')) {
+            $(selectPlantilla).select2('destroy');
+        }
+
+        const fila = plantilla.cloneNode(true);
+        const selectClonado = fila.querySelector('.product-select');
         
-        fila.querySelector('.product-select').name = `productos[${contador}][id_producto]`;
-        fila.querySelector('.product-select').value = ''; 
+        selectClonado.name = `productos[${contador}][id_producto]`;
+        selectClonado.value = '';
+        selectClonado.removeAttribute('data-select2-id');
+        selectClonado.removeAttribute('tabindex');
+        selectClonado.removeAttribute('aria-hidden');
+        selectClonado.classList.remove('select2-hidden-accessible');
+        selectClonado.querySelectorAll('option').forEach(function(option) {
+            option.removeAttribute('data-select2-id');
+        });
         fila.querySelector('.socio-input').value = '';
         fila.querySelector('.precio-input').value = '';
         fila.querySelector('.cantidad-input').name = `productos[${contador}][cantidad]`;
@@ -155,10 +202,9 @@
         fila.querySelector('.subtotal-display').textContent = 'Bs. 0';
         fila.querySelector('button[onclick="eliminarFila(this)"]').classList.remove('hidden');
 
-        $(fila.querySelector('.product-select')).select2('destroy');
         container.appendChild(fila);
-        
-        inicializarSelect2();
+        inicializarSelect2(plantilla);
+        inicializarSelect2(fila);
         contador++;
         calcularTotales();
     }

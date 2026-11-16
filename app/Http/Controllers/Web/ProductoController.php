@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Producto;
 use App\Models\Categoria;
 use App\Models\Usuario;
+use App\Support\InsensitiveSearch;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ProductoController extends Controller
@@ -27,7 +29,7 @@ class ProductoController extends Controller
 
         // Filtro por Nombre
         if ($request->filled('buscar')) {
-            $query->where('nombre', 'LIKE', '%' . $request->buscar . '%');
+            InsensitiveSearch::whereContains($query, 'nombre', $request->buscar);
         }
 
         // Filtro por Categoría
@@ -65,7 +67,7 @@ class ProductoController extends Controller
         $data = $request->validate([
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'id_usuario_socio' => 'required|exists:usuarios,id_usuario',
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'descripcion' => 'nullable|string',
             'precio' => 'required|numeric|min:0.01',
             'materiales' => 'nullable|string|max:255',
@@ -107,7 +109,7 @@ class ProductoController extends Controller
         $data = $request->validate([
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'id_usuario_socio' => 'required|exists:usuarios,id_usuario',
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'descripcion' => 'nullable|string',
             'precio' => 'required|numeric|min:0.01',
             'materiales' => 'nullable|string|max:255',
@@ -141,6 +143,21 @@ class ProductoController extends Controller
         $producto->update(['activo' => false]); // No lo borramos de la BD, solo lo ocultamos
         
         return redirect('/admin/productos')->with('success', 'Producto desactivado. Ya no aparecerá en las ventas.');
+    }
+
+    public function addStock(Request $request, $id): RedirectResponse
+    {
+        $data = $request->validate([
+            'cantidad' => 'required|integer|min:1',
+        ]);
+
+        DB::transaction(function () use ($data, $id) {
+            $producto = Producto::whereKey($id)->lockForUpdate()->firstOrFail();
+            $producto->stock_actual = (int) $producto->stock_actual + (int) $data['cantidad'];
+            $producto->save();
+        });
+
+        return back()->with('success', 'Stock actualizado correctamente.');
     }
 
     private function validarCategoriaYSocio(Request $request): ?RedirectResponse

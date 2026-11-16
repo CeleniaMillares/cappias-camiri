@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Usuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,8 +28,18 @@ class LoginController extends Controller
             'contrasena' => 'required'
         ]);
 
-        // Intentar autenticar con los campos personalizados (correo y contrasena_hash)
-        if (Auth::attempt(['correo' => $credentials['correo'], 'password' => $credentials['contrasena']])) {
+        $usuario = Usuario::where('correo', $credentials['correo'])->first();
+        if ($usuario && $usuario->hasRole('Alumno')) {
+            return back()->withErrors([
+                'correo' => 'Las cuentas con rol Alumno no pueden iniciar sesión.',
+            ])->onlyInput('correo');
+        }
+
+        if (Auth::attempt([
+            'correo' => $credentials['correo'],
+            'password' => $credentials['contrasena'],
+            'activo' => true,
+        ])) {
             // Regenerar la sesión por seguridad (evita ataques de fijación de sesión)
             $request->session()->regenerate();
 
@@ -36,7 +47,12 @@ class LoginController extends Controller
             return redirect()->intended('/admin/dashboard');
         }
 
-        // Si falla, volver atrás con error
+        if ($usuario && ! $usuario->activo) {
+            return back()->withErrors([
+                'correo' => 'Tu cuenta ha sido desactivada. Contacta al administrador.',
+            ])->onlyInput('correo');
+        }
+
         return back()->withErrors([
             'correo' => 'Las credenciales no coinciden con nuestros registros.',
         ])->onlyInput('correo');

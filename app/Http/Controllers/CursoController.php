@@ -16,7 +16,6 @@ class CursoController extends Controller
         $request->validate([
             'id_usuario_instructor' => 'required|uuid|exists:usuarios,id_usuario',
             'nombre' => 'required|string|max:150',
-            'duracion' => 'required|string|max:50',
             'costo' => 'required|numeric|min:0',
             'horarios' => 'required|array|min:1',
             'horarios.*.dia_semana' => 'required|string',
@@ -33,7 +32,6 @@ class CursoController extends Controller
                 'id_usuario_instructor' => $request->id_usuario_instructor,
                 'nombre' => $request->nombre,
                 'descripcion' => $request->descripcion,
-                'duracion' => $request->duracion,
                 'costo' => $request->costo,
                 'activo' => true
             ]);

@@ -14,7 +14,7 @@
     @endif
 </div>
 
-<!-- 🔍 BARRA DE FILTROS -->
+<!-- Barra de filtros -->
 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
     <form method="GET" action="/admin/ventas" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
         <div>
@@ -47,17 +47,17 @@
             <input type="text" name="producto" value="{{ request('producto') }}" placeholder="Buscar producto..." class="w-full border-gray-300 rounded-lg shadow-sm p-2 border text-sm">
         </div>
         <div class="md:col-span-5 flex gap-2 justify-end mt-2">
-            <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500">
                 <i class="fas fa-search mr-2"></i> Filtrar
             </button>
-            <a href="/admin/ventas" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm">
-                Limpiar Filtros
+            <a href="/admin/ventas" class="inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <i class="fas fa-times mr-2" aria-hidden="true"></i> Limpiar Filtros
             </a>
         </div>
     </form>
 </div>
 
-<!-- 💰 RESUMEN DE FILTROS APLICADOS -->
+<!-- Resumen de filtros aplicados -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-green-500">
         <p class="text-xs text-gray-500 uppercase font-bold">Total Cobrado (Pagadas + Liquidadas)</p>
@@ -125,10 +125,19 @@
                     @endif
                 </td>
                 <td class="p-4">
+                    @if(Auth::user()->hasRole('Directiva'))
+                        @foreach($venta->pagos->where('estado', 'PENDIENTE') as $pago)
+                            @if($pago->comprobante_url)
+                                <a href="{{ asset('storage/' . $pago->comprobante_url) }}" target="_blank" rel="noopener noreferrer" class="mb-2 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                                    <i class="fas fa-image" aria-hidden="true"></i> Ver comprobante
+                                </a>
+                            @endif
+                        @endforeach
+                    @endif
                     @if($venta->estado === 'PENDIENTE_PAGO' && Auth::user()->hasRole('Directiva'))
-                        <form method="POST" action="/admin/ventas/{{ $venta->id_venta }}/confirmar-pago" onsubmit="return confirm('¿Confirmas que el pago ya se realizó? Se descontará el stock.');">
+                        <form method="POST" action="/admin/ventas/{{ $venta->id_venta }}/confirmar-pago" onsubmit="return confirm('¿Confirmas que el pago ya se realizó?');">
                             @csrf
-                            <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm w-full">
+                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full">
                                 <i class="fas fa-check-circle mr-1"></i> Confirmar Pago
                             </button>
                         </form>

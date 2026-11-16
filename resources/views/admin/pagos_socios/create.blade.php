@@ -3,12 +3,12 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/pagos-socios" class="text-blue-600 hover:underline text-sm mb-2 inline-block"><i class="fas fa-arrow-left mr-1"></i> Volver a Pagos a Socios</a>
+        <a href="/admin/pagos-socios" class="mb-2 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600"><i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver a Pagos a Socios</a>
         <h1 class="text-2xl font-bold text-gray-800">Pagar a: {{ $socio->nombre }}</h1>
     </div>
 
     <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-6">
-        <h2 class="text-lg font-bold border-b pb-3 mb-4 text-gray-800"><i class="fas fa-list-alt text-blue-500 mr-2"></i> Ventas Pendientes de Pago</h2>
+        <h2 class="text-lg font-bold border-b pb-3 mb-4 text-gray-800"><i class="fas fa-list-alt text-blue-500 mr-2"></i> Ingresos por ventas</h2>
         
         <div class="overflow-x-auto mb-6">
             <table class="w-full text-left text-sm text-gray-600">
@@ -35,19 +35,76 @@
             </table>
         </div>
 
+        <h2 class="text-lg font-bold border-b pb-3 mb-4 text-gray-800"><i class="fas fa-graduation-cap text-blue-500 mr-2"></i> Ingresos por cursos</h2>
+        <div class="overflow-x-auto mb-6">
+            <table class="w-full text-left text-sm text-gray-600">
+                <thead class="bg-gray-50 text-gray-700">
+                    <tr>
+                        <th class="p-3">Alumno</th>
+                        <th class="p-3">Curso</th>
+                        <th class="p-3 text-right">Pago confirmado</th>
+                        <th class="p-3 text-right">Comisión CAPPIAS</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($inscripciones as $inscripcion)
+                        @php
+                            $montoCurso = (float) $inscripcion->pagos->sum('monto');
+                            $comisionInscripcion = $inscripcion->comision_calculada
+                                ? (float) $inscripcion->comision_cappias
+                                : round((float) $inscripcion->horarioCurso->curso->costo * $comisionCursoPorc / 100, 2);
+                        @endphp
+                        <tr>
+                            <td class="p-3 font-medium text-gray-800">{{ $inscripcion->alumno->nombres }}</td>
+                            <td class="p-3">{{ $inscripcion->horarioCurso->curso->nombre }}</td>
+                            <td class="p-3 text-right">Bs. {{ number_format($montoCurso, 2) }}</td>
+                            <td class="p-3 text-right text-red-600">Bs. {{ number_format($comisionInscripcion, 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="p-4 text-center text-gray-500">Aún no hay pagos confirmados de cursos.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
         <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
             <div class="flex justify-between items-center text-lg mb-2">
-                <span class="text-gray-600">Total Bruto:</span>
+                <span class="text-gray-600">Ventas — bruto:</span>
                 <span class="font-bold text-gray-800">Bs. {{ number_format($bruto, 2) }}</span>
             </div>
-            <div class="flex justify-between items-center text-red-600 mb-3 border-b pb-3">
+            <div class="flex justify-between items-center text-red-600 mb-2">
                 <span>Comisión CAPPIAS ({{ $comisionPorc }}%):</span>
-                <span class="font-bold">- Bs. {{ number_format($bruto * $comisionPorc / 100, 2) }}</span>
+                <span class="font-bold">- Bs. {{ number_format($comisionVentas, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-600">Cursos — bruto:</span>
+                <span class="font-bold text-gray-800">Bs. {{ number_format($brutoCursos, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center text-red-600 mb-3 border-b pb-3">
+                <span>Comisión CAPPIAS de cursos ({{ $comisionCursoPorc }}% configurada):</span>
+                <span class="font-bold">- Bs. {{ number_format($comisionCursos, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-600">Total bruto:</span>
+                <span class="font-bold text-gray-800">Bs. {{ number_format($brutoTotal, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-2 text-red-600">
+                <span>Comisión total CAPPIAS:</span>
+                <span class="font-bold">- Bs. {{ number_format($comisionTotal, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-2 border-b pb-3">
+                <span class="text-gray-600">Neto generado:</span>
+                <span class="font-bold text-gray-800">Bs. {{ number_format($netoGenerado, 2) }}</span>
+            </div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-gray-600">Pagado anteriormente:</span>
+                <span class="font-bold text-gray-800">Bs. {{ number_format($montoPagado, 2) }}</span>
             </div>
             <div class="flex justify-between items-center text-xl font-extrabold text-blue-700">
                 <span>Saldo Pendiente a Pagar:</span>
                 <span>Bs. {{ number_format($saldoPendiente, 2) }}</span>
             </div>
+            <p class="mt-3 text-xs text-gray-500">Los pagos parciales se distribuyen proporcionalmente entre los saldos pendientes de ventas y cursos. El comprobante registra la comisión aplicada a cada origen.</p>
         </div>
     </div>
 

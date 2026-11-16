@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CursoController extends Controller
 {
@@ -38,115 +41,162 @@ class CursoController extends Controller
         $instructores = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Socio/Instructor'))->get();
         $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
         $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
-        return view('admin.cursos.create', compact('instructores', 'cupoMin', 'cupoMax'));
+        $horariosFormulario = old('horarios', [[]]);
+
+        return view('admin.cursos.create', compact('instructores', 'cupoMin', 'cupoMax', 'horariosFormulario'));
     }
 
     public function store(Request $request) {
         $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
         $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
 
-        $request->validate([
+        $validated = $request->validate([
             'id_usuario_instructor' => 'required|uuid|exists:usuarios,id_usuario',
-            'nombre' => 'required|string|max:150',
-            'duracion' => 'required|string|max:50',
-            'costo' => 'required|numeric|min:0',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
+            'descripcion' => 'nullable|string',
+            'costo' => 'required|numeric|min:0.01',
             'imagen_url' => 'nullable|image|max:2048',
             'horarios' => 'required|array|min:1',
             'horarios.*.dia_semana' => 'required|string|max:100',
-            'horarios.*.hora_inicio' => 'required',
-            'horarios.*.hora_fin' => 'required',
-            'horarios.*.fecha_inicio' => 'required|date',
-            'horarios.*.fecha_fin' => 'required|date|after_or_equal:horarios.*.fecha_inicio',
+            'horarios.*.hora_inicio' => 'required|date_format:H:i',
+            'horarios.*.hora_fin' => 'required|date_format:H:i',
+            'horarios.*.fecha_inicio' => 'required|date_format:Y-m-d',
+            'horarios.*.fecha_fin' => 'required|date_format:Y-m-d|after_or_equal:horarios.*.fecha_inicio',
             'horarios.*.cupo_maximo' => "required|integer|min:{$cupoMin}|max:{$cupoMax}",
         ]);
 
-        return DB::transaction(function () use ($request) {
-            
-            $imagenPath = null;
-            if ($request->hasFile('imagen_url')) {
-                $imagenPath = $request->file('imagen_url')->store('cursos', 'public');
-            }
+        $imagenPath = $request->file('imagen_url')?->store('cursos', 'public');
+        if ($request->hasFile('imagen_url') && ! $imagenPath) {
+            throw new \RuntimeException('No se pudo guardar la imagen del curso.');
+        }
 
-            $curso = Curso::create([
-                'id_usuario_instructor' => $request->id_usuario_instructor,
-                'nombre' => $request->nombre,
-                'descripcion' => $request->descripcion,
-                'duracion' => $request->duracion,
-                'costo' => $request->costo,
-                'imagen_url' => $imagenPath,
-                'activo' => true
-            ]);
-
-            foreach ($request->horarios as $horario) {
-                HorarioCurso::create([
-                    'id_curso' => $curso->id_curso,
-                    'dia_semana' => $horario['dia_semana'],
-                    'hora_inicio' => $horario['hora_inicio'],
-                    'hora_fin' => $horario['hora_fin'],
-                    'fecha_inicio' => $horario['fecha_inicio'],
-                    'fecha_fin' => $horario['fecha_fin'],
-                    'cupo_maximo' => $horario['cupo_maximo'],
+        try {
+            return DB::transaction(function () use ($validated, $imagenPath) {
+                $curso = Curso::create([
+                    'id_usuario_instructor' => $validated['id_usuario_instructor'],
+                    'nombre' => $validated['nombre'],
+                    'descripcion' => $validated['descripcion'] ?? null,
+                    'costo' => $validated['costo'],
+                    'imagen_url' => $imagenPath,
+                    'activo' => true,
                 ]);
+
+                foreach ($validated['horarios'] as $horario) {
+                    $curso->horarios()->create($horario);
+                }
+
+                return redirect('/admin/cursos')->with('success', 'Curso registrado exitosamente.');
+            });
+        } catch (Throwable $exception) {
+            if ($imagenPath) {
+                Storage::disk('public')->delete($imagenPath);
             }
 
-            return redirect('/admin/cursos')->with('success', 'Curso registrado exitosamente.');
-        });
+            throw $exception;
+        }
     }
 
     public function edit($id) {
-        $curso = Curso::with('horarios')->findOrFail($id);
+        $curso = Curso::with(['horarios' => fn ($query) => $query
+            ->orderBy('created_at')
+            ->orderBy('id_horario_curso')])->findOrFail($id);
         $instructores = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Socio/Instructor'))->get();
-        $horario = $curso->horarios->first();
         $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
         $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
+        $horariosGuardados = $curso->horarios->map(fn ($horario) => [
+            'id_horario_curso' => $horario->id_horario_curso,
+            'dia_semana' => $horario->dia_semana,
+            'hora_inicio' => $horario->hora_inicio,
+            'hora_fin' => $horario->hora_fin,
+            'fecha_inicio' => $horario->fecha_inicio,
+            'fecha_fin' => $horario->fecha_fin,
+            'cupo_maximo' => $horario->cupo_maximo,
+        ])->all();
+        $horariosFormulario = old('horarios', $horariosGuardados ?: [[]]);
 
-        return view('admin.cursos.edit', compact('curso', 'instructores', 'horario', 'cupoMin', 'cupoMax'));
+        return view('admin.cursos.edit', compact('curso', 'instructores', 'cupoMin', 'cupoMax', 'horariosFormulario'));
     }
 
     public function update(Request $request, $id) {
+        $curso = Curso::findOrFail($id);
         $cupoMin = (int) (Parametro::where('clave', 'cupo_minimo')->value('valor') ?? 6);
         $cupoMax = (int) (Parametro::where('clave', 'cupo_maximo')->value('valor') ?? 15);
 
-        $request->validate([
+        $validated = $request->validate([
             'id_usuario_instructor' => 'required|exists:usuarios,id_usuario',
-            'nombre' => 'required',
-            'costo' => 'required|numeric',
-            'duracion' => 'required',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
+            'descripcion' => 'nullable|string',
+            'costo' => 'required|numeric|min:0.01',
             'imagen_url' => 'nullable|image|max:2048',
-            'horarios.0.dia_semana' => 'required|max:100',
-            'horarios.0.hora_inicio' => 'required',
-            'horarios.0.hora_fin' => 'required',
-            'horarios.0.fecha_inicio' => 'required|date',
-            'horarios.0.fecha_fin' => 'required|date|after_or_equal:horarios.0.fecha_inicio',
-            'horarios.0.cupo_maximo' => "required|integer|min:{$cupoMin}|max:{$cupoMax}",
+            'horarios' => 'required|array|min:1',
+            'horarios.*.id_horario_curso' => [
+                'nullable',
+                'uuid',
+                Rule::exists('horario_cursos', 'id_horario_curso')
+                    ->where('id_curso', $curso->id_curso),
+            ],
+            'horarios.*.dia_semana' => 'required|string|max:100',
+            'horarios.*.hora_inicio' => 'required|date_format:H:i',
+            'horarios.*.hora_fin' => 'required|date_format:H:i',
+            'horarios.*.fecha_inicio' => 'required|date_format:Y-m-d',
+            'horarios.*.fecha_fin' => 'required|date_format:Y-m-d|after_or_equal:horarios.*.fecha_inicio',
+            'horarios.*.cupo_maximo' => "required|integer|min:{$cupoMin}|max:{$cupoMax}",
         ]);
 
-        return DB::transaction(function () use ($request, $id) {
-            $curso = Curso::findOrFail($id);
-            
-            $imagenPath = $curso->imagen_url;
-            if ($request->hasFile('imagen_url')) {
-                if ($curso->imagen_url) {
-                    Storage::disk('public')->delete($curso->imagen_url);
+        $imagenAnterior = $curso->imagen_url;
+        $imagenPath = $request->file('imagen_url')?->store('cursos', 'public') ?? $imagenAnterior;
+        if ($request->hasFile('imagen_url') && ! $imagenPath) {
+            throw new \RuntimeException('No se pudo guardar la imagen del curso.');
+        }
+
+        try {
+            $result = DB::transaction(function () use ($curso, $validated, $imagenPath) {
+                $curso->update([
+                    'id_usuario_instructor' => $validated['id_usuario_instructor'],
+                    'nombre' => $validated['nombre'],
+                    'descripcion' => $validated['descripcion'] ?? null,
+                    'costo' => $validated['costo'],
+                    'imagen_url' => $imagenPath,
+                ]);
+
+                foreach ($validated['horarios'] as $horarioData) {
+                    $idHorario = $horarioData['id_horario_curso'] ?? null;
+                    unset($horarioData['id_horario_curso']);
+
+                    if ($idHorario) {
+                        $horario = $curso->horarios()
+                            ->whereKey($idHorario)
+                            ->lockForUpdate()
+                            ->firstOrFail();
+                        $cantidadInscritos = $horario->inscripciones()->count();
+
+                        if ($cantidadInscritos > $horarioData['cupo_maximo']) {
+                            throw ValidationException::withMessages([
+                                'horarios' => 'El cupo de un grupo no puede ser menor que la cantidad de alumnos ya inscritos.',
+                            ]);
+                        }
+
+                        $horario->update($horarioData);
+                    } else {
+                        $curso->horarios()->create($horarioData);
+                    }
                 }
-                $imagenPath = $request->file('imagen_url')->store('cursos', 'public');
+
+                return redirect('/admin/cursos')->with('success', 'Curso actualizado correctamente.');
+            });
+        } catch (Throwable $exception) {
+            if ($imagenPath !== $imagenAnterior) {
+                Storage::disk('public')->delete($imagenPath);
             }
 
-            $curso->update([
-                'id_usuario_instructor' => $request->id_usuario_instructor,
-                'nombre' => $request->nombre,
-                'descripcion' => $request->descripcion,
-                'duracion' => $request->duracion,
-                'costo' => $request->costo,
-                'imagen_url' => $imagenPath,
-            ]);
+            throw $exception;
+        }
 
-            if ($curso->horarios->isNotEmpty()) {
-                $curso->horarios->first()->update($request->horarios[0]);
-            }
+        if ($imagenPath !== $imagenAnterior && $imagenAnterior) {
+            Storage::disk('public')->delete($imagenAnterior);
+        }
 
-            return redirect('/admin/cursos')->with('success', 'Curso actualizado correctamente.');
-        });
+        return $result;
     }
 
     public function destroy($id) {

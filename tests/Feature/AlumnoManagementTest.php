@@ -57,9 +57,12 @@ class AlumnoManagementTest extends TestCase
         $this->actingAs($directiva)
             ->get('/admin/alumnos/inscribir')
             ->assertOk()
-            ->assertSee($curso->nombre);
+            ->assertSee($curso->nombre)
+            ->assertSee('name="id_curso"', false)
+            ->assertSee('name="id_horario_curso"', false);
 
         $this->post('/admin/alumnos/inscribir', [
+            'id_curso' => $curso->id_curso,
             'id_horario_curso' => $horario->id_horario_curso,
             'nombres' => 'Alumno Nuevo',
             'ci' => '87654321',
@@ -72,6 +75,7 @@ class AlumnoManagementTest extends TestCase
         $alumno = Alumno::where('ci', '87654321')->firstOrFail();
         $inscripcion = Inscripcion::where('id_alumno', $alumno->id_alumno)->firstOrFail();
 
+        $this->assertSame(1, Usuario::count());
         $this->assertSame('PENDIENTE_PAGO', $inscripcion->estado);
         $this->assertDatabaseHas('pagos', [
             'id_inscripcion' => $inscripcion->id_inscripcion,
@@ -81,12 +85,49 @@ class AlumnoManagementTest extends TestCase
         ]);
     }
 
+    public function test_enrollment_requires_a_group_belonging_to_the_selected_course(): void
+    {
+        [$directiva, , $horario] = $this->createFixtures();
+        $anotherCourse = Curso::create([
+            'id_usuario_instructor' => $directiva->id_usuario,
+            'nombre' => 'Otro curso',
+            'costo' => 100,
+            'activo' => true,
+        ]);
+        HorarioCurso::create([
+            'id_curso' => $anotherCourse->id_curso,
+            'dia_semana' => 'Domingo',
+            'hora_inicio' => '09:00',
+            'hora_fin' => '12:00',
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->addMonth()->toDateString(),
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->actingAs($directiva)
+            ->from('/admin/alumnos/inscribir')
+            ->post('/admin/alumnos/inscribir', [
+                'id_curso' => $anotherCourse->id_curso,
+                'id_horario_curso' => $horario->id_horario_curso,
+                'nombres' => 'Alumno Nuevo',
+                'ci' => '87654321',
+                'telefono' => '70000001',
+                'edad' => 18,
+                'metodo_pago' => 'QR',
+            ])
+            ->assertRedirect('/admin/alumnos/inscribir')
+            ->assertSessionHasErrors('id_horario_curso');
+
+        $this->assertDatabaseCount('inscripciones', 0);
+    }
+
     public function test_new_alumno_inscription_confirms_cash_and_checked_qr_payments(): void
     {
         [$directiva, , $horario] = $this->createFixtures();
         Event::fake([InscripcionConfirmada::class]);
 
         $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_curso' => $horario->id_curso,
             'id_horario_curso' => $horario->id_horario_curso,
             'nombres' => 'Alumno Efectivo',
             'ci' => '11110000',
@@ -106,6 +147,7 @@ class AlumnoManagementTest extends TestCase
         Event::assertDispatched(InscripcionConfirmada::class, 1);
 
         $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_curso' => $horario->id_curso,
             'id_horario_curso' => $horario->id_horario_curso,
             'nombres' => 'Alumno QR confirmado',
             'ci' => '22220000',
@@ -125,6 +167,7 @@ class AlumnoManagementTest extends TestCase
         ]);
 
         $this->actingAs($directiva)->post('/admin/alumnos/inscribir', [
+            'id_curso' => $horario->id_curso,
             'id_horario_curso' => $horario->id_horario_curso,
             'nombres' => 'Alumno mixto confirmado',
             'ci' => '33330000',
@@ -151,7 +194,7 @@ class AlumnoManagementTest extends TestCase
         Event::assertDispatched(InscripcionConfirmada::class, 3);
     }
 
-    public function test_alumno_can_update_profile_and_view_course_history(): void
+    public function test_directiva_can_update_student_record_and_view_course_history(): void
     {
         [$directiva, , $horario] = $this->createFixtures();
         $alumno = Alumno::create([
@@ -184,6 +227,11 @@ class AlumnoManagementTest extends TestCase
             ->assertSee('CONFIRMADA');
     }
 
+    public function test_alumno_records_do_not_have_a_user_account_column(): void
+    {
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('alumnos', 'id_usuario'));
+    }
+
     private function createFixtures(): array
     {
         $role = Rol::create(['nombre' => 'Directiva']);
@@ -198,7 +246,6 @@ class AlumnoManagementTest extends TestCase
         $curso = Curso::create([
             'id_usuario_instructor' => $directiva->id_usuario,
             'nombre' => 'Curso Artesanal',
-            'duracion' => '8 semanas',
             'costo' => 75,
             'activo' => true,
         ]);

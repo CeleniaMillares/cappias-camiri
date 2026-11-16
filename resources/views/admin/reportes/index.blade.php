@@ -26,16 +26,16 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Hasta:</label>
                 <input type="date" name="fecha_fin" value="{{ $fechaFin }}" class="border-gray-300 rounded-lg p-2 border text-sm focus:ring-blue-500 focus:border-blue-500">
             </div>
-            <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 font-semibold shadow-sm h-[42px]">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-sm h-[42px]">
                 <i class="fas fa-filter mr-2"></i> Filtrar
             </button>
         </div>
         <div class="flex gap-2">
             <a href="/admin/reportes/pdf?fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}" 
-            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-semibold shadow-sm h-[42px] flex items-center">
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-sm h-[42px] flex items-center">
                 <i class="fas fa-file-pdf mr-2"></i> PDF
             </a>
-            <a href="/admin/reportes/excel?fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-semibold shadow-sm h-[42px] flex items-center">
+            <a href="/admin/reportes/excel?fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-sm h-[42px] flex items-center">
                 <i class="fas fa-file-excel mr-2"></i> Excel
             </a>
         </div>

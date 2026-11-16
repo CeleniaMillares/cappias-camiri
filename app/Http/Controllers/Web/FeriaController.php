@@ -4,8 +4,13 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Feria;
+use App\Models\Socio;
+use App\Support\InsensitiveSearch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class FeriaController extends Controller
 {
@@ -15,8 +20,11 @@ class FeriaController extends Controller
         // Filtro por nombre o lugar
         if ($request->filled('buscar')) {
             $query->where(function($q) use ($request) {
-                $q->where('nombre', 'LIKE', '%' . $request->buscar . '%')
-                  ->orWhere('lugar', 'LIKE', '%' . $request->buscar . '%');
+                $q->where(function ($q) use ($request) {
+                    InsensitiveSearch::whereContains($q, 'nombre', $request->buscar);
+                })->orWhere(function ($q) use ($request) {
+                    InsensitiveSearch::whereContains($q, 'lugar', $request->buscar);
+                });
             });
         }
 
@@ -36,7 +44,7 @@ class FeriaController extends Controller
 
     public function store(Request $request) {
         $request->validate([
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'fecha' => 'required|date',
             'lugar' => 'required|string|max:255',
             'imagen_url' => 'nullable|image|max:2048',
@@ -54,19 +62,34 @@ class FeriaController extends Controller
 
     public function edit($id) {
         $feria = Feria::findOrFail($id);
-        return view('admin.ferias.edit', compact('feria'));
+        $feria->load('socios');
+        $socios = Socio::with('usuario')
+            ->get()
+            ->sortBy(fn ($socio) => $socio->usuario->nombre ?? '')
+            ->values();
+
+        return view('admin.ferias.edit', compact('feria', 'socios'));
     }
 
     public function update(Request $request, $id) {
-        $request->validate([
-            'nombre' => 'required|string|max:150',
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'fecha' => 'required|date',
             'lugar' => 'required|string|max:255',
             'imagen_url' => 'nullable|image|max:2048',
+            'gestionar_socios' => 'sometimes|boolean',
+            'socios' => 'sometimes|array',
+            'socios.*' => [
+                'uuid',
+                'distinct',
+                Rule::exists('socios', 'id_socio')->whereNull('deleted_at'),
+            ],
+            'estados' => 'sometimes|array',
+            'estados.*' => 'required|in:CONFIRMADO,PENDIENTE',
         ]);
 
         $feria = Feria::findOrFail($id);
-        $data = $request->all();
+        $data = Arr::only($validated, ['nombre', 'fecha', 'lugar']);
 
         if ($request->hasFile('imagen_url')) {
             if ($feria->imagen_url) {
@@ -75,7 +98,21 @@ class FeriaController extends Controller
             $data['imagen_url'] = $request->file('imagen_url')->store('ferias', 'public');
         }
 
-        $feria->update($data);
+        DB::transaction(function () use ($request, $feria, $data, $validated) {
+            $feria->update($data);
+
+            if ($request->boolean('gestionar_socios')) {
+                $participantes = [];
+                foreach ($validated['socios'] ?? [] as $idSocio) {
+                    $participantes[$idSocio] = [
+                        'estado' => $validated['estados'][$idSocio] ?? 'CONFIRMADO',
+                    ];
+                }
+
+                $feria->socios()->sync($participantes);
+            }
+        });
+
         return redirect('/admin/ferias')->with('success', 'Feria actualizada correctamente.');
     }
 

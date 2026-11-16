@@ -15,7 +15,6 @@ use App\Http\Controllers\Web\AdminController;
 use App\Http\Controllers\Web\CategoriaController;
 use App\Http\Controllers\Web\SocioController;
 use App\Http\Controllers\Web\PublicController;
-use App\Http\Controllers\Web\CheckoutController;
 use App\Http\Controllers\Web\PerfilController;
 use App\Http\Controllers\Web\PasswordResetController;
 use App\Http\Controllers\Web\BackupController;
@@ -26,9 +25,7 @@ use App\Http\Controllers\Web\BackupController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('welcome'); 
-});
+Route::get('/', [PublicController::class, 'home']);
 
 // Login
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -37,15 +34,9 @@ Route::post('/logout', [LoginController::class, 'logout']);
 Route::get('/password/reset/{token}', [PasswordResetController::class, 'create'])->name('password.reset');
 Route::post('/password/reset', [PasswordResetController::class, 'store'])->name('password.update');
 
-// Vitrina Pública (Catálogo para Alumnos y Clientes)
+// Vitrina pública de solo lectura
 Route::get('/vitrina/cursos', [PublicController::class, 'cursos'])->name('public.cursos');
 Route::get('/vitrina/productos', [PublicController::class, 'productos'])->name('public.productos');
-
-// Checkout de Invitado (Registro automático)
-Route::get('/checkout/curso/{id_curso}', [CheckoutController::class, 'createCurso']);
-Route::post('/checkout/curso/{id_curso}', [CheckoutController::class, 'storeCurso']);
-Route::get('/checkout/producto/{id_producto}', [CheckoutController::class, 'createProducto']);
-Route::post('/checkout/producto/{id_producto}', [CheckoutController::class, 'storeProducto']);
 
 /*
 |--------------------------------------------------------------------------
@@ -97,13 +88,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     | 3. RUTAS COMPARTIDAS (Directiva, Socio y Alumno)
     |----------------------------------------------------------------------
     */
-    Route::middleware('role:Directiva,Socio/Instructor,Alumno')->group(function () {
+    Route::middleware('role:Directiva,Socio/Instructor')->group(function () {
         Route::get('/inscripciones', [InscripcionController::class, 'index']);
-    });
-
-    // Portal del Alumno
-    Route::middleware('role:Alumno')->group(function () {
-        Route::get('/mi-perfil', [PerfilController::class, 'alumno']);
     });
 
     /*
@@ -113,10 +99,6 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     */
     Route::middleware('role:Directiva,Socio/Instructor')->group(function () {
         Route::get('/alumnos', [AlumnoController::class, 'index']);
-        Route::get('/alumnos/inscribir', [AlumnoController::class, 'create']);
-        Route::post('/alumnos/inscribir', [AlumnoController::class, 'store']);
-        Route::get('/alumnos/{id}/editar', [AlumnoController::class, 'edit']);
-        Route::put('/alumnos/{id}', [AlumnoController::class, 'update']);
         Route::get('/alumnos/{id}/historial', [AlumnoController::class, 'historial']);
 
         // Listados
@@ -125,10 +107,6 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::get('/ventas', [VentaController::class, 'index']);
         Route::get('/pagos-socios', [PagoSocioController::class, 'index']);
 
-        // Inscripciones
-        Route::get('/inscripciones/crear/{id_horario_curso}', [InscripcionController::class, 'create']);
-        Route::post('/inscripciones', [InscripcionController::class, 'store']);
-        
         // Ver alumnos de un curso
         Route::get('/cursos/{id}/alumnos', [CursoController::class, 'showAlumnos']);
 
@@ -144,6 +122,12 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:Directiva')->group(function () {
+        Route::get('/alumnos/inscribir', [AlumnoController::class, 'create']);
+        Route::post('/alumnos/inscribir', [AlumnoController::class, 'store']);
+        Route::get('/alumnos/{id}/editar', [AlumnoController::class, 'edit']);
+        Route::put('/alumnos/{id}', [AlumnoController::class, 'update']);
+        Route::get('/inscripciones/crear/{id_horario_curso}', [InscripcionController::class, 'create']);
+        Route::post('/inscripciones', [InscripcionController::class, 'store']);
         Route::post('/inscripciones/{id}/confirmar', [InscripcionController::class, 'confirmar']);
         
         // --- Cursos ---
@@ -160,6 +144,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::get('/productos/{id}/editar', [ProductoController::class, 'edit']);
         Route::get('/productos/{id}/edit', [ProductoController::class, 'edit']); // Fallback
         Route::put('/productos/{id}', [ProductoController::class, 'update']);
+        Route::post('/productos/{id}/stock', [ProductoController::class, 'addStock']);
         Route::delete('/productos/{id}', [ProductoController::class, 'destroy']);
 
         // --- Ventas ---
@@ -210,3 +195,6 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     });
 
 });
+
+Route::middleware(['auth', 'role:Socio/Instructor'])
+    ->post('/perfil/socio/feria/{id}', [PerfilController::class, 'solicitarParticipacionFeria']);

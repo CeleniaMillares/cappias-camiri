@@ -32,7 +32,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="block text-sm font-semibold mb-1">Teléfono:</label>
-                    <input type="text" name="telefono" value="{{ $socio->telefono }}" class="w-full border p-2 rounded-lg" required>
+                    <input type="text" name="telefono" value="{{ $socio->telefono }}" class="w-full border p-2 rounded-lg" required inputmode="numeric" minlength="7" maxlength="8" pattern="[0-9]{7,8}">
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-1">Dirección:</label>
@@ -45,7 +45,7 @@
                     <p class="text-sm text-gray-600"><strong>Fecha de Inscripción:</strong> {{ \Carbon\Carbon::parse($socio->fecha_inscripcion)->format('d/m/Y') }} (No editable)</p>
                 </div>
 
-                <button type="submit" class="bg-blue-600 text-white w-full py-2 rounded-lg font-bold hover:bg-blue-700">Actualizar Datos</button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full"><i class="fas fa-save mr-2" aria-hidden="true"></i> Actualizar Datos</button>
             </form>
         </div>
 
@@ -67,7 +67,7 @@
                     <label class="block text-sm font-semibold mb-1">Confirmar Nueva Contraseña:</label>
                     <input type="password" name="contrasena_nueva_confirmation" class="w-full border p-2 rounded-lg" required>
                 </div>
-                <button type="submit" class="bg-yellow-600 text-white w-full py-2 rounded-lg font-bold hover:bg-yellow-700">Cambiar Contraseña</button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full"><i class="fas fa-key mr-2" aria-hidden="true"></i> Cambiar Contraseña</button>
             </form>
         </div>
     </div>
@@ -108,6 +108,35 @@
             </tbody>
         </table>
         <p class="text-xs text-gray-400 mt-3"><i class="fas fa-info-circle mr-1"></i> Los pagos son registrados únicamente por la Directiva.</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-store text-blue-500 mr-2"></i> Ferias</h2>
+        <div class="space-y-4">
+            @forelse($ferias as $feria)
+                @php($participacion = $feria->socios->first())
+                <div class="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="font-semibold text-gray-800">{{ $feria->nombre }}</h3>
+                        <p class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($feria->fecha)->format('d/m/Y') }} · {{ $feria->lugar }}</p>
+                    </div>
+                    @if($participacion)
+                        <span class="inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold {{ $participacion->pivot->estado === 'CONFIRMADO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
+                            {{ $participacion->pivot->estado }}
+                        </span>
+                    @else
+                        <form method="POST" action="/perfil/socio/feria/{{ $feria->id_feria }}">
+                            @csrf
+                            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
+                                Solicitar Participación
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @empty
+                <p class="text-sm text-gray-500">No hay ferias futuras disponibles.</p>
+            @endforelse
+        </div>
     </div>
 </div>
 @endsection

@@ -10,6 +10,7 @@ use App\Models\HorarioCurso;
 use App\Models\Inscripcion;
 use App\Models\Pago;
 use App\Models\Parametro;
+use App\Support\InsensitiveSearch;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,8 +29,11 @@ class AlumnoController extends Controller
             ->with(['inscripciones.horarioCurso.curso'])
             ->when($buscar !== '', function ($query) use ($buscar) {
                 $query->where(function ($query) use ($buscar) {
-                    $query->where('nombres', 'LIKE', "%{$buscar}%")
-                        ->orWhere('ci', 'LIKE', "%{$buscar}%");
+                    $query->where(function ($query) use ($buscar) {
+                        InsensitiveSearch::whereContains($query, 'nombres', $buscar);
+                    })->orWhere(function ($query) use ($buscar) {
+                        InsensitiveSearch::whereContains($query, 'ci', $buscar);
+                    });
                 });
             });
 
@@ -38,8 +42,11 @@ class AlumnoController extends Controller
             ->when($buscar !== '', function ($query) use ($buscar) {
                 $query->whereHas('alumno', function ($query) use ($buscar) {
                     $query->where(function ($query) use ($buscar) {
-                        $query->where('nombres', 'LIKE', "%{$buscar}%")
-                            ->orWhere('ci', 'LIKE', "%{$buscar}%");
+                        $query->where(function ($query) use ($buscar) {
+                            InsensitiveSearch::whereContains($query, 'nombres', $buscar);
+                        })->orWhere(function ($query) use ($buscar) {
+                            InsensitiveSearch::whereContains($query, 'ci', $buscar);
+                        });
                     });
                 });
             });
@@ -65,50 +72,52 @@ class AlumnoController extends Controller
         return view('admin.alumnos.index', compact('alumnos', 'inscripcionesPendientes', 'buscar'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $user = Auth::user();
-        $cursosQuery = Curso::with('horarios')->where('activo', true);
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
 
-        if ($user->hasRole('Socio/Instructor')) {
-            $cursosQuery->where('id_usuario_instructor', $user->id_usuario);
-        }
-
-        $cursos = $cursosQuery->orderBy('nombre')->get();
+        $cursos = Curso::with('horarios')
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+        $seleccionCurso = old('id_curso', $request->query('id_curso'));
+        $idCursoSeleccionado = $cursos->contains('id_curso', $seleccionCurso)
+            ? $seleccionCurso
+            : '';
         $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
 
-        return view('admin.alumnos.inscribir', compact('cursos', 'qrImage'));
+        return view('admin.alumnos.inscribir', compact('cursos', 'qrImage', 'idCursoSeleccionado'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'id_horario_curso' => 'required|exists:horario_cursos,id_horario_curso',
-            'nombres' => 'required|string|max:150',
-            'ci' => 'required|string|max:20',
-            'telefono' => 'required|string|max:20',
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
+
+        $validated = $request->validate([
+            'id_curso' => 'required|uuid|exists:cursos,id_curso',
+            'id_horario_curso' => [
+                'required',
+                'uuid',
+                Rule::exists('horario_cursos', 'id_horario_curso')
+                    ->where('id_curso', $request->input('id_curso')),
+            ],
+            'nombres' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
+            'ci' => ['required', 'string', 'regex:/^[0-9]{6,10}(-[A-Za-z0-9]{1,2})?$/'],
+            'telefono' => ['required', 'string', 'regex:/^[0-9]{7,8}$/'],
             'edad' => 'required|integer|min:1',
             'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
             'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
         ]);
 
-        $user = Auth::user();
-
         try {
-            DB::transaction(function () use ($request, $user) {
+            DB::transaction(function () use ($request, $validated) {
                 $horario = HorarioCurso::with('curso')
                     ->lockForUpdate()
+                    ->where('id_curso', $validated['id_curso'])
                     ->findOrFail($request->id_horario_curso);
 
                 if (! $horario->curso->activo) {
                     throw new \RuntimeException('Este curso ya no está disponible.');
-                }
-
-                if (
-                    $user->hasRole('Socio/Instructor')
-                    && $horario->curso->id_usuario_instructor !== $user->id_usuario
-                ) {
-                    abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
                 }
 
                 $alumno = Alumno::firstOrCreate(
@@ -211,6 +220,8 @@ class AlumnoController extends Controller
 
     public function edit($id)
     {
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
+
         $alumno = Alumno::findOrFail($id);
         $this->authorizeAlumno($alumno);
 
@@ -219,18 +230,20 @@ class AlumnoController extends Controller
 
     public function update(Request $request, $id)
     {
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
+
         $alumno = Alumno::findOrFail($id);
         $this->authorizeAlumno($alumno);
 
         $request->validate([
-            'nombres' => 'required|string|max:150',
+            'nombres' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'ci' => [
                 'required',
                 'string',
-                'max:20',
+                'regex:/^[0-9]{6,10}(-[A-Za-z0-9]{1,2})?$/',
                 Rule::unique('alumnos', 'ci')->ignore($alumno->id_alumno, 'id_alumno'),
             ],
-            'telefono' => 'required|string|max:20',
+            'telefono' => ['required', 'string', 'regex:/^[0-9]{7,8}$/'],
             'edad' => 'required|integer|min:1',
         ]);
 

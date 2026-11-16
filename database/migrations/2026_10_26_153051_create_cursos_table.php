@@ -10,9 +10,8 @@ return new class extends Migration {
             $table->uuid('id_usuario_instructor');
             $table->string('nombre', 150);
             $table->text('descripcion')->nullable();
-            $table->string('duracion', 50); 
             $table->decimal('costo', 10, 2);
-             $table->string('imagen_url')->nullable();
+            $table->string('imagen_url')->nullable();
             $table->boolean('activo')->default(true);
             $table->timestamps();
 

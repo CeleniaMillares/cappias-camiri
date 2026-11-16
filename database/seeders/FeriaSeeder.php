@@ -9,14 +9,22 @@ class FeriaSeeder extends Seeder
 {
     public function run(): void
     {
-        Feria::updateOrCreate(['nombre' => 'Feria de Artesanías 2026'], [
+        $this->updateOrCreateTitleCase('Feria de Artesanías 2026', [
             'fecha' => now()->addDays(15)->toDateString(),
             'lugar' => 'Plaza Principal de Camiri',
         ]);
 
-        Feria::updateOrCreate(['nombre' => 'Feria Gastronómica 2026'], [
+        $this->updateOrCreateTitleCase('Feria Gastronómica 2026', [
             'fecha' => now()->addDays(30)->toDateString(),
             'lugar' => 'Coliseo Municipal de Camiri',
         ]);
+    }
+
+    private function updateOrCreateTitleCase(string $nombre, array $attributes): void
+    {
+        $feria = Feria::whereRaw('LOWER(nombre) = ?', [mb_strtolower($nombre, 'UTF-8')])->first()
+            ?? new Feria();
+
+        $feria->fill(['nombre' => $nombre] + $attributes)->save();
     }
 }

@@ -15,7 +15,7 @@ class CoreSeedersTest extends TestCase
         $this->seed();
 
         $this->assertDatabaseCount('roles', 5);
-        $this->assertDatabaseCount('usuarios', 4);
+        $this->assertDatabaseCount('usuarios', 3);
         $this->assertDatabaseCount('socios', 1);
         $this->assertDatabaseCount('categorias', 5);
         $this->assertDatabaseCount('parametros', 8);

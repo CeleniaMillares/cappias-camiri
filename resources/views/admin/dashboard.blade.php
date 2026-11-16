@@ -115,7 +115,7 @@
     </div>
 </div>
 
-<!-- 🔥 Script de Chart.js para el Gráfico -->
+<!-- Script de Chart.js para el gráfico -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const ctx = document.getElementById('graficoVentas').getContext('2d');

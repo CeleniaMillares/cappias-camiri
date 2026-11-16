@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Feria;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class PerfilController extends Controller
@@ -19,8 +22,47 @@ class PerfilController extends Controller
         }
 
         $pagos = $socio->cuotas()->orderBy('fecha_pago', 'desc')->get();
-        
-        return view('admin.perfil.socio', compact('user', 'socio', 'pagos'));
+        $idSocio = $socio->id_socio;
+        $ferias = Feria::query()
+            ->whereDate('fecha', '>=', now()->toDateString())
+            ->with(['socios' => fn ($query) => $query->where('socios.id_socio', $idSocio)])
+            ->orderBy('fecha')
+            ->get();
+
+        return view('admin.perfil.socio', compact('user', 'socio', 'pagos', 'ferias'));
+    }
+
+    public function solicitarParticipacionFeria(string $id)
+    {
+        $socio = Auth::user()->socio;
+        if (! $socio) {
+            abort(403, 'No tienes un perfil de socio registrado.');
+        }
+
+        $resultado = DB::transaction(function () use ($id, $socio) {
+            $feria = Feria::query()->lockForUpdate()->findOrFail($id);
+            if (Carbon::parse($feria->fecha)->isBefore(today())) {
+                abort(404, 'La feria ya no está disponible para solicitudes.');
+            }
+
+            $participacion = $feria->socios()
+                ->wherePivot('id_socio', $socio->id_socio)
+                ->first();
+
+            if ($participacion) {
+                return ['existente' => true, 'estado' => $participacion->pivot->estado];
+            }
+
+            $feria->socios()->attach($socio->id_socio, ['estado' => 'PENDIENTE']);
+
+            return ['existente' => false, 'estado' => 'PENDIENTE'];
+        });
+
+        $mensaje = $resultado['existente']
+            ? "Ya tienes una participación en esta feria con estado {$resultado['estado']}."
+            : 'Tu solicitud para participar en la feria fue registrada.';
+
+        return back()->with('success', $mensaje);
     }
 
     // Actualizar datos del socio
@@ -29,9 +71,9 @@ class PerfilController extends Controller
         $socio = $user->socio;
 
         $request->validate([
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'correo' => 'required|email|unique:usuarios,correo,' . $user->id_usuario . ',id_usuario',
-            'telefono' => 'required|string|max:20',
+            'telefono' => ['required', 'string', 'regex:/^[0-9]{7,8}$/'],
             'direccion' => 'nullable|string|max:255',
         ]);
 
@@ -68,16 +110,4 @@ class PerfilController extends Controller
         return back()->with('success', 'Contraseña actualizada correctamente.');
     }
 
-    // Portal del Alumno/Cliente (ver sus inscripciones y compras)
-    public function alumno() {
-        $user = Auth::user();
-        $alumno = $user->alumno;
-        $inscripciones = $alumno
-            ? $alumno->inscripciones()->with(['horarioCurso.curso', 'pagos'])->latest()->get()
-            : collect();
-
-        // También buscamos ventas hechas con su correo (aunque el sistema no vincula ventas a usuarios)
-        // Por ahora solo mostramos inscripciones
-        return view('admin.perfil.alumno', compact('user', 'inscripciones'));
-    }
 }

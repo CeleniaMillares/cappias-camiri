@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#064e3b">
     <title>Iniciar sesión | CAPPIAS Camiri</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @include('partials.theme-head')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,16 +16,17 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800 antialiased">
+    @include('partials.theme-toggle')
     <main class="flex min-h-screen items-stretch">
         <aside class="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-green-950 via-green-900 to-slate-900 p-12 text-white md:flex md:flex-col md:justify-between lg:p-16">
             <div class="absolute -right-32 -top-32 h-96 w-96 rounded-full border-[40px] border-white/5"></div>
             <div class="absolute -bottom-40 -left-20 h-[30rem] w-[30rem] rounded-full border-[50px] border-green-400/10"></div>
 
             <a href="/" class="relative z-10 inline-flex w-fit items-center gap-3 text-white">
-                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-green-300">
-                    <i class="fa-solid fa-leaf text-xl" aria-hidden="true"></i>
+                <span class="flex h-11 items-center justify-center rounded-xl bg-white p-1">
+                    <img src="{{ asset('img/logo_cappias.png') }}" alt="CAPPIAS" class="h-10 w-auto object-contain">
                 </span>
-                <span class="font-display text-lg font-extrabold tracking-tight">CAPPIAS Camiri</span>
+                <span class="font-display text-lg font-extrabold tracking-tight">Sistema de Gestión</span>
             </a>
 
             <div class="relative z-10 mx-auto w-full max-w-xl">
@@ -43,7 +44,7 @@
 
         <section class="flex w-full items-center justify-center px-5 py-10 md:w-1/2 sm:px-8">
             <div class="w-full max-w-md">
-                <a href="/" class="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-green-800 md:hidden">
+                <a href="/" class="mb-8 inline-flex items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 md:hidden">
                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al inicio
                 </a>
 
@@ -98,14 +99,14 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-green-900/15 transition hover:-translate-y-0.5 hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-200">
+                    <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200">
                         <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
                         Ingresar
                     </button>
                 </form>
 
                 <div class="mt-7 text-center">
-                    <a href="/" class="text-sm font-semibold text-slate-500 transition hover:text-green-800">
+                    <a href="/" class="inline-flex items-center rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                         <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i> Volver a la página de inicio
                     </a>
                 </div>

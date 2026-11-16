@@ -19,7 +19,7 @@ class CategoriaController extends Controller
 
     public function store(Request $request) {
         $request->validate([
-            'nombre' => 'required|string|max:100|unique:categorias,nombre',
+            'nombre' => ['required', 'string', 'max:100', 'regex:/^[\pL\s\-]+$/u', 'unique:categorias,nombre'],
             'descripcion' => 'nullable|string|max:255'
         ]);
 
@@ -41,7 +41,7 @@ class CategoriaController extends Controller
         $categoria = Categoria::findOrFail($id);
         
         $request->validate([
-            'nombre' => 'required|string|max:100|unique:categorias,nombre,' . $id . ',id_categoria',
+            'nombre' => ['required', 'string', 'max:100', 'regex:/^[\pL\s\-]+$/u', 'unique:categorias,nombre,' . $id . ',id_categoria'],
         ]);
 
         $activa = $request->has('activo');

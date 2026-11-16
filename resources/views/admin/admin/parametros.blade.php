@@ -29,7 +29,7 @@
             </div>
             @endforeach
 
-            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition w-full font-bold shadow-sm mt-4">
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full mt-4">
                 <i class="fas fa-save mr-2"></i> Guardar Cambios
             </button>
         </form>

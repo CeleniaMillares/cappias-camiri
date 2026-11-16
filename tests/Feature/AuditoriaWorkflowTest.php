@@ -47,7 +47,7 @@ class AuditoriaWorkflowTest extends TestCase
 
         $this->assertDatabaseHas('auditorias', [
             'id_usuario' => $administrador->id_usuario,
-            'nombre_usuario' => 'Administrador auditoría',
+            'nombre_usuario' => 'Administrador Auditoría',
             'accion' => 'ELIMINAR',
             'entidad' => 'Producto',
         ]);

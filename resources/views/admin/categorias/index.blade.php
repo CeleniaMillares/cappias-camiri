@@ -48,7 +48,7 @@
                 </td>
                 <td class="p-4 flex gap-3 items-center">
                     <!-- Botón Editar -->
-                    <a href="/admin/categorias/{{ $cat->id_categoria }}/editar" class="text-blue-600 hover:underline font-semibold">
+                    <a href="/admin/categorias/{{ $cat->id_categoria }}/editar" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500">
                         <i class="fas fa-edit"></i> Editar
                     </a>
                     
@@ -57,7 +57,7 @@
                         <form method="POST" action="/admin/categorias/{{ $cat->id_categoria }}" onsubmit="return confirm('¿Desactivar esta categoría y todos sus productos activos?');">
                             @csrf 
                             @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:underline font-semibold">
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700">
                                 <i class="fas fa-ban"></i> Desactivar
                             </button>
                         </form>
@@ -69,7 +69,7 @@
                             <input type="hidden" name="nombre" value="{{ $cat->nombre }}">
                             <input type="hidden" name="descripcion" value="{{ $cat->descripcion }}">
                             <input type="hidden" name="activo" value="1">
-                            <button type="submit" class="text-green-600 hover:underline font-semibold">
+                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500">
                                 <i class="fas fa-check-circle"></i> Activar
                             </button>
                         </form>

@@ -19,11 +19,13 @@ class InscripcionController extends Controller
     public function index() {
         /** @var \App\Models\Usuario $user */
         $user = Auth::user();
+        if ($user->hasRole('Directiva')) {
+            return redirect('/admin/alumnos');
+        }
+
         $query = Inscripcion::with(['alumno', 'horarioCurso.curso', 'pagos']);
 
-        if ($user->hasRole('Alumno')) {
-            $query->where('id_alumno', $user->alumno?->id_alumno ?? '');
-        } elseif ($user->hasRole('Socio/Instructor')) {
+        if ($user->hasRole('Socio/Instructor')) {
             $query->whereHas('horarioCurso.curso', fn($q) => $q->where('id_usuario_instructor', $user->id_usuario));
         }
 
@@ -32,11 +34,9 @@ class InscripcionController extends Controller
     }
 
     public function create($id_horario_curso) {
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
+
         $horario = HorarioCurso::with('curso')->findOrFail($id_horario_curso);
-        $user = Auth::user();
-        if ($user->hasRole('Socio/Instructor') && $horario->curso->id_usuario_instructor !== $user->id_usuario) {
-            abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
-        }
 
         // 🔥 Cargamos el QR oficial
         $qrImage = Parametro::where('clave', 'qr_image_url')->value('valor');
@@ -44,24 +44,20 @@ class InscripcionController extends Controller
     }
 
     public function store(Request $request) {
+        abort_unless(Auth::user()->hasRole('Directiva'), 403);
+
         $request->validate([
             'id_horario_curso' => 'required|exists:horario_cursos,id_horario_curso',
-            'nombres' => 'required|string|max:150',
-            'ci' => 'required|string|max:20',
-            'telefono' => 'required|string|max:20',
+            'nombres' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
+            'ci' => ['required', 'string', 'regex:/^[0-9]{6,10}(-[A-Za-z0-9]{1,2})?$/'],
+            'telefono' => ['required', 'string', 'regex:/^[0-9]{7,8}$/'],
             'edad' => 'required|integer|min:1',
             'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
             'monto_efectivo' => 'required_if:metodo_pago,MIXTO|nullable|numeric|min:0',
         ]);
 
-        $user = Auth::user();
-        $horarioParaValidar = HorarioCurso::with('curso')->findOrFail($request->id_horario_curso);
-        if ($user->hasRole('Socio/Instructor') && $horarioParaValidar->curso->id_usuario_instructor !== $user->id_usuario) {
-            abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
-        }
-
         try {
-            DB::transaction(function () use ($request, $user) {
+            DB::transaction(function () use ($request) {
                 $alumno = Alumno::firstOrCreate(
                     ['ci' => $request->ci],
                     ['nombres' => $request->nombres, 'telefono' => $request->telefono, 'edad' => $request->edad]
@@ -70,9 +66,6 @@ class InscripcionController extends Controller
                 $horario = HorarioCurso::with('curso')
                     ->lockForUpdate()
                     ->findOrFail($request->id_horario_curso);
-                if ($user->hasRole('Socio/Instructor') && $horario->curso->id_usuario_instructor !== $user->id_usuario) {
-                    abort(403, 'No puedes inscribir alumnos en cursos que no dictas.');
-                }
 
                 $yaInscrito = Inscripcion::where('id_alumno', $alumno->id_alumno)
                     ->where('id_horario_curso', $horario->id_horario_curso)->exists();
@@ -131,7 +124,7 @@ class InscripcionController extends Controller
                 }
             });
 
-            return redirect('/admin/inscripciones')->with('success', 'Inscripción registrada correctamente.');
+            return redirect('/admin/alumnos')->with('success', 'Inscripción registrada correctamente.');
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
             throw $e;
         } catch (QueryException $e) {
@@ -200,6 +193,6 @@ class InscripcionController extends Controller
             return back()->with('error', 'No se puede confirmar: revisa los pagos registrados de esta inscripción.');
         }
 
-        return redirect('/admin/inscripciones')->with('success', 'Pago confirmado. Comisión calculada.');
+        return redirect('/admin/alumnos')->with('success', 'Pago confirmado. Comisión calculada.');
     }
 }

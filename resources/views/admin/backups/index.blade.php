@@ -8,7 +8,7 @@
     </div>
     <form method="POST" action="/admin/backups" onsubmit="return confirm('¿Generar un nuevo respaldo ahora?');">
         @csrf
-        <button type="submit" class="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 font-bold shadow-sm">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500">
             <i class="fas fa-database mr-2"></i> Generar Nuevo Backup
         </button>
     </form>
@@ -44,13 +44,13 @@
                     <td class="p-4">{{ \Carbon\Carbon::createFromTimestamp($file['created_at'])->format('d/m/Y H:i') }}</td>
                     <td class="p-4">
                         <div class="flex flex-wrap gap-3">
-                            <a href="/admin/backups/download/{{ rawurlencode($file['filename']) }}" class="text-blue-600 hover:underline font-semibold">
+                            <a href="/admin/backups/download/{{ rawurlencode($file['filename']) }}" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500">
                                 <i class="fas fa-download mr-1"></i> Descargar
                             </a>
                             <form method="POST" action="/admin/backups/{{ rawurlencode($file['filename']) }}" onsubmit="return confirm('¿Eliminar este respaldo? Esta acción no se puede deshacer.');">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline font-semibold">
+                                <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700">
                                     <i class="fas fa-trash mr-1"></i> Eliminar
                                 </button>
                             </form>

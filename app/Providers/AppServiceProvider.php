@@ -20,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        \Carbon\Carbon::setLocale('es');
+
         // Registramos los modelos que queremos auditar
         Producto::observe(AuditoriaObserver::class);
         Venta::observe(AuditoriaObserver::class);

@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/usuarios" class="text-blue-600 hover:underline text-sm mb-2 inline-block">
+        <a href="/admin/usuarios" class="mb-2 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
             <i class="fas fa-arrow-left mr-1"></i> Volver a la lista
         </a>
         <h1 class="text-2xl font-bold text-gray-800">Registrar Nuevo Usuario</h1>

@@ -3,17 +3,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\HasTitleCase;
 
 class Alumno extends Model {
-    use HasUuids, SoftDeletes;
+    use HasUuids, SoftDeletes, HasTitleCase;
     protected $table = 'alumnos';
     protected $primaryKey = 'id_alumno';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['id_usuario', 'nombres', 'ci', 'telefono', 'edad', 'activo'];
+    protected $fillable = ['nombres', 'ci', 'telefono', 'edad', 'activo'];
 
-    public function usuario() {
-        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
+    protected function titleCaseAttributes(): array
+    {
+        return ['nombres'];
     }
 
     public function inscripciones() {

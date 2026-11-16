@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="mb-6">
-    <a href="/admin/alumnos" class="text-blue-600 hover:underline text-sm">← Volver a Alumnos</a>
+    <a href="/admin/alumnos" class="inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600"><i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver a Alumnos</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Historial de {{ $alumno->nombres }}</h1>
     <p class="text-sm text-gray-500">CI: {{ $alumno->ci }}</p>
 </div>

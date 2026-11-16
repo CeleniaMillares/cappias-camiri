@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/socios" class="text-blue-600 hover:underline text-sm mb-2 inline-block"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
+        <a href="/admin/socios" class="mb-2 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600"><i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver</a>
         <h1 class="text-2xl font-bold text-gray-800">Pago Mensual: {{ $socio->usuario->nombre }}</h1>
         <p class="text-gray-500 text-sm">Inscrito el: {{ \Carbon\Carbon::parse($socio->fecha_inscripcion)->format('d/m/Y') }}</p>
     </div>
@@ -21,7 +21,7 @@
             </div>
         @else
             <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p class="text-green-700 font-bold text-lg">¡Al día! 🎉</p>
+                <p class="text-green-700 font-bold text-lg">¡Al día!</p>
                 <p class="text-sm text-green-600 mt-1">
                     Puede pagar adelantado a partir de: <strong>{{ ucfirst(\Carbon\Carbon::createFromFormat('Y-m', $primerMesPendiente)->translatedFormat('F Y')) }}</strong>
                 </p>
@@ -42,10 +42,10 @@
                     @endif">
                     <p class="text-xs font-bold">{{ $mes['label'] }}</p>
                     <p class="text-[10px] mt-1">
-                        @if($mes['pagado']) ✓ Pagado
-                        @elseif($mes['es_actual']) ● Actual
-                        @elseif($mes['es_futuro']) ○ Futuro
-                        @else ✗ Debido
+                        @if($mes['pagado']) <i class="fas fa-check-circle" aria-hidden="true"></i> Pagado
+                        @elseif($mes['es_actual']) <i class="fas fa-circle" aria-hidden="true"></i> Actual
+                        @elseif($mes['es_futuro']) <i class="far fa-circle" aria-hidden="true"></i> Futuro
+                        @else <i class="fas fa-times-circle" aria-hidden="true"></i> Debido
                         @endif
                     </p>
                 </div>
@@ -127,7 +127,7 @@
             <p class="text-sm text-yellow-700 mt-1">Saldo por QR: <b id="saldo_text">Bs. 0.00</b></p>
         </div>
 
-        <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 w-full font-bold">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full">
             <i class="fas fa-save mr-2"></i> Registrar Pago
         </button>
     </form>
@@ -178,7 +178,7 @@
         
         const saltadosEl = document.getElementById('preview-saltados');
         if (saltados > 0) {
-            saltadosEl.textContent = '⚠ Se omitirán ' + saltados + ' mes(es) ya pagados.';
+            saltadosEl.textContent = 'Se omitirán ' + saltados + ' mes(es) ya pagados.';
             saltadosEl.classList.remove('hidden');
         } else {
             saltadosEl.classList.add('hidden');

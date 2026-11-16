@@ -6,7 +6,7 @@
         <h1 class="text-2xl font-bold text-gray-800">Verificación de Pagos QR</h1>
         <p class="text-gray-500 text-sm mt-1">Confirma los pagos que hayan llegado a la cuenta bancaria.</p>
     </div>
-    <a href="/admin/ventas" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition shadow-sm">
+    <a href="/admin/ventas" class="inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
         <i class="fas fa-arrow-left mr-2"></i> Volver a Ventas
     </a>
 </div>
@@ -52,7 +52,7 @@
                     </div>
                 </div>
 
-                <!-- 🔥 AQUÍ ESTÁ EL BOTÓN DE CONFIRMAR PAGO QR -->
+                <!-- Botón de confirmar pago QR -->
                 @if($pagosPorVerificar->count() > 0)
                     @foreach($pagosPorVerificar as $pago)
                         <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-2 text-center">
@@ -62,13 +62,13 @@
                             <div class="flex flex-col gap-2">
                                 <form action="/admin/ventas/verificar-pago/{{ $pago->id_pago }}/aprobar" method="POST">
                                     @csrf
-                                    <button type="submit" class="bg-green-600 text-white w-full py-2 rounded-lg hover:bg-green-700 font-bold shadow-sm">
+                                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full">
                                         <i class="fas fa-check-circle mr-1"></i> Confirmar Pago QR
                                     </button>
                                 </form>
                                 <form action="/admin/ventas/verificar-pago/{{ $pago->id_pago }}/rechazar" method="POST">
                                     @csrf
-                                    <button type="submit" class="bg-red-100 text-red-700 border border-red-300 w-full py-2 rounded-lg hover:bg-red-200 font-bold shadow-sm text-sm">
+                                    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-red-700 w-full text-sm">
                                         <i class="fas fa-times mr-1"></i> Rechazar Pago
                                     </button>
                                 </form>

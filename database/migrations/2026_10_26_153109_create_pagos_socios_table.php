@@ -13,6 +13,11 @@ return new class extends Migration {
             $table->decimal('monto_bruto', 10, 2);
             $table->decimal('comision', 10, 2);
             $table->decimal('monto_neto', 10, 2);
+            $table->decimal('monto_bruto_ventas', 10, 2)->nullable();
+            $table->decimal('comision_ventas', 10, 2)->nullable();
+            $table->decimal('monto_bruto_cursos', 10, 2)->nullable();
+            $table->decimal('comision_cursos', 10, 2)->nullable();
+            $table->string('origen');
             $table->string('metodo', 20)->default('EFECTIVO');
             $table->string('estado', 20)->default('PAGADA');
             $table->timestamps();

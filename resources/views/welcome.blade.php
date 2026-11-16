@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#14532d">
     <meta name="description" content="CAPPIAS Camiri: organización que impulsa el desarrollo de la pequeña industria, artesanías y servicios.">
     <title>CAPPIAS Camiri | Artesanía, industria y servicios</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @include('partials.theme-head')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +25,9 @@
                 <img src="{{ asset('img/logo_cappias.png') }}" class="h-12 w-auto object-contain sm:h-14" alt="CAPPIAS Camiri">
             </a>
             <div class="flex items-center gap-2 sm:gap-4">
+                <button type="button" data-theme-toggle class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition hover:bg-slate-50" aria-label="Activar modo oscuro" aria-pressed="false" title="Activar modo oscuro">
+                    <i class="fas fa-moon" aria-hidden="true"></i>
+                </button>
                 <a href="/vitrina/cursos" class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-green-50 hover:text-green-800 sm:inline-flex">Ver Cursos</a>
                 <a href="/vitrina/productos" class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-green-50 hover:text-green-800 sm:inline-flex">Ver Productos</a>
                 <a href="/login" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-green-800 sm:px-4 sm:text-sm">
@@ -192,6 +195,40 @@
             </div>
         </section>
 
+        <section class="bg-slate-50 py-16 sm:py-24">
+            <div class="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+                <div class="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p class="text-xs font-extrabold uppercase tracking-[.18em] text-green-700">Creaciones locales</p>
+                        <h2 class="mt-3 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Productos destacados</h2>
+                        <p class="mt-4 text-slate-600">Conoce algunos productos elaborados por nuestros asociados.</p>
+                    </div>
+                    <a href="/vitrina/productos" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700">
+                        <i class="fa-solid fa-store" aria-hidden="true"></i> Ver catálogo
+                    </a>
+                </div>
+                <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    @forelse($productos as $producto)
+                        <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            @if($producto->fotografia_url)
+                                <img src="{{ asset('storage/' . $producto->fotografia_url) }}" alt="Fotografía de {{ $producto->nombre }}" class="h-48 w-full object-cover">
+                            @else
+                                <div class="flex h-48 items-center justify-center bg-slate-100 text-slate-400">
+                                    <i class="fa-solid fa-box-open text-4xl" aria-hidden="true"></i>
+                                </div>
+                            @endif
+                            <div class="p-5">
+                                <h3 class="font-display text-lg font-bold text-slate-900">{{ $producto->nombre }}</h3>
+                                <p class="mt-2 text-xl font-extrabold text-green-700">Bs. {{ number_format($producto->precio, 2) }}</p>
+                            </div>
+                        </article>
+                    @empty
+                        <p class="text-slate-600">Pronto publicaremos productos de nuestros asociados.</p>
+                    @endforelse
+                </div>
+            </div>
+        </section>
+
         <section class="bg-green-900 py-14 sm:py-18">
             <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-5 text-center sm:px-8 md:flex-row md:text-left lg:px-10">
                 <div>
@@ -210,7 +247,7 @@
         <div class="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-2 lg:px-10">
             <div>
                 <a href="/" class="inline-flex items-center gap-3 text-white">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-700"><i class="fa-solid fa-leaf" aria-hidden="true"></i></span>
+                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-700"><i class="fa-solid fa-handshake-angle" aria-hidden="true"></i></span>
                     <span class="font-display text-lg font-extrabold">CAPPIAS Camiri</span>
                 </a>
                 <p class="mt-4 max-w-lg text-sm leading-7 text-slate-400">Cámara Provincial de la Pequeña Industria, Artesanías y Servicios. Trabajando por el desarrollo de nuestros asociados desde 2004.</p>

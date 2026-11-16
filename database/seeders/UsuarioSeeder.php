@@ -15,8 +15,6 @@ class UsuarioSeeder extends Seeder
         $rolAdmin = Rol::where('nombre', 'Administrador')->first();
         $rolDirectiva = Rol::where('nombre', 'Directiva')->first();
         $rolSocio = Rol::where('nombre', 'Socio/Instructor')->first();
-        $rolAlumno = Rol::where('nombre', 'Alumno')->first();
-
         // 1. Usuario Administrador
         $admin = Usuario::firstOrCreate(['correo' => 'admin@cappias.com'], [
             'nombre' => 'Administrador General',
@@ -50,12 +48,5 @@ class UsuarioSeeder extends Seeder
             'estado' => 'ACTIVO'
         ]);
 
-        // 4. Usuario Alumno
-        $alumno = Usuario::firstOrCreate(['correo' => 'alumno@cappias.com'], [
-            'nombre' => 'Alumno Ejemplo',
-            'contrasena_hash' => Hash::make('alumno123'),
-            'activo' => true,
-        ]);
-        $alumno->roles()->syncWithoutDetaching([$rolAlumno->id_rol]);
     }
 }

@@ -17,7 +17,7 @@
     </div>
 @endif
 
-<!-- 🔍 BARRA DE FILTROS (Socio, Fecha Inicio, Fecha Fin) -->
+<!-- Barra de filtros (socio, fecha de inicio y fecha de fin) -->
 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
     <form method="GET" action="/admin/pagos-socios" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div class="md:col-span-2">
@@ -33,11 +33,11 @@
             <input type="date" name="fecha_fin" value="{{ $fechaFin ?? '' }}" class="w-full border-gray-300 rounded-lg shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
         </div>
         <div class="md:col-span-4 flex gap-2 justify-end mt-2">
-            <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm h-[42px]">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500 h-[42px]">
                 <i class="fas fa-search mr-2"></i> Filtrar
             </button>
-            <a href="/admin/pagos-socios" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
-                Limpiar
+            <a href="/admin/pagos-socios" class="inline-flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600 h-[42px]">
+                <i class="fas fa-times mr-2" aria-hidden="true"></i> Limpiar
             </a>
         </div>
     </form>
@@ -46,7 +46,7 @@
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
     <!-- ============================================= -->
-    <!-- 🔴 SECCIÓN 1: SALDOS PENDIENTES               -->
+    <!-- Sección 1: saldos pendientes -->
     <!-- ============================================= -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-4 border-b border-gray-100 bg-red-50 flex justify-between items-center">
@@ -74,6 +74,10 @@
                             </div>
                             <span class="font-bold text-gray-800">{{ $item['socio']->nombre }}</span>
                         </div>
+                        <p class="mt-1 pl-12 text-xs text-gray-500">
+                            Pendiente: ventas Bs. {{ number_format($item['ventas_saldo'], 2) }}
+                            · cursos Bs. {{ number_format($item['cursos_saldo'], 2) }}
+                        </p>
                     </td>
                     <td class="p-4 text-right font-bold text-red-600">
                         Bs. {{ number_format($item['saldo'], 2) }}
@@ -97,7 +101,7 @@
     </div>
 
     <!-- ============================================= -->
-    <!-- 🟢 SECCIÓN 2: HISTORIAL DE PAGOS REALIZADOS   -->
+    <!-- Sección 2: historial de pagos realizados -->
     <!-- ============================================= -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
@@ -133,6 +137,10 @@
                         </td>
                         <td class="p-4 font-bold text-green-600">
                             Bs. {{ number_format($pago->monto_neto, 2) }}
+                            <p class="mt-1 text-xs font-normal text-gray-500">
+                                Ventas: Bs. {{ number_format(($pago->monto_bruto_ventas ?? $pago->monto_bruto) - ($pago->comision_ventas ?? $pago->comision), 2) }}
+                                · Cursos: Bs. {{ number_format(($pago->monto_bruto_cursos ?? 0) - ($pago->comision_cursos ?? 0), 2) }}
+                            </p>
                         </td>
                         <td class="p-4 text-xs">{{ $pago->metodo ?? 'No especificado' }}</td>
                         <td class="p-4 text-center">
@@ -147,8 +155,8 @@
                                 <form method="POST" action="/admin/pagos-socios/{{ $pago->id_pago_socio }}/anular"
                                       onsubmit="return confirm('¿Confirmas anular este pago? El saldo volverá a estar pendiente.');">
                                     @csrf
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-semibold">
-                                        Anular
+                                    <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700">
+                                        <i class="fas fa-ban" aria-hidden="true"></i> Anular
                                     </button>
                                 </form>
                             @else

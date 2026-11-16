@@ -141,7 +141,6 @@ class ReporteDashboardWorkflowTest extends TestCase
         $curso = Curso::create([
             'id_usuario_instructor' => $socioUser->id_usuario,
             'nombre' => 'Curso Reportes',
-            'duracion' => '1 mes',
             'costo' => 40,
             'activo' => true,
         ]);

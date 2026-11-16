@@ -8,6 +8,7 @@ use App\Models\Socio;
 use App\Models\Rol;
 use App\Models\CuotaSocio;
 use App\Models\Parametro;
+use App\Support\InsensitiveSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -26,8 +27,13 @@ class SocioController extends Controller
         $buscar = $request->input('buscar');
         $socios = Socio::with(['usuario'])
             ->when($buscar, function($q) use ($buscar) {
-                $q->whereHas('usuario', fn($q2) => $q2->where('nombre', 'LIKE', '%' . $buscar . '%'))
-                  ->orWhere('ci', 'LIKE', '%' . $buscar . '%');
+                $q->where(function ($q) use ($buscar) {
+                    $q->where(function ($q) use ($buscar) {
+                        $q->whereHas('usuario', fn($q2) => InsensitiveSearch::whereContains($q2, 'nombre', $buscar));
+                    })->orWhere(function ($q) use ($buscar) {
+                        InsensitiveSearch::whereContains($q, 'ci', $buscar);
+                    });
+                });
             })->get();
 
         $mesActual = now()->format('Y-m');
@@ -88,11 +94,11 @@ class SocioController extends Controller
         $montoInscripcion = Parametro::where('clave', 'monto_inscripcion')->value('valor') ?? 100;
 
         $request->validate([
-            'nombre' => 'required|string|max:150',
+            'nombre' => ['required', 'string', 'max:150', 'regex:/^[\pL\s\-]+$/u'],
             'correo' => 'required|email|unique:usuarios,correo',
             'contrasena' => 'required|min:6',
-            'ci' => 'required|string|max:20|unique:socios,ci',
-            'telefono' => 'required|string|max:20',
+            'ci' => ['required', 'string', 'regex:/^[0-9]{6,10}(-[A-Za-z0-9]{1,2})?$/', 'unique:socios,ci'],
+            'telefono' => ['required', 'string', 'regex:/^[0-9]{7,8}$/'],
             'metodo_pago' => 'required|in:EFECTIVO,QR,MIXTO',
             'monto_efectivo' => [
                 'required_if:metodo_pago,MIXTO',

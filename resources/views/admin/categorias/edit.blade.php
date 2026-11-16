@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/categorias" class="text-blue-600 hover:underline text-sm mb-2 inline-block">
+        <a href="/admin/categorias" class="mb-2 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600">
             <i class="fas fa-arrow-left mr-1"></i> Volver a la lista
         </a>
         <h1 class="text-2xl font-bold text-gray-800">Editar Categoría</h1>
@@ -33,13 +33,13 @@
             <textarea name="descripcion" rows="3" class="w-full border-gray-300 border p-3 rounded-lg focus:ring-blue-500 focus:border-blue-500">{{ $categoria->descripcion }}</textarea>
         </div>
 
-        <!-- 🔥 CASILLA PARA ACTIVAR / DESACTIVAR -->
+        <!-- Casilla para activar o desactivar -->
         <div class="mb-6 flex items-center gap-3 bg-blue-50 p-4 rounded-lg border border-blue-200">
             <input type="checkbox" name="activo" id="activo" value="1" {{ $categoria->activo ? 'checked' : '' }} class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
             <label for="activo" class="font-bold text-blue-800 cursor-pointer">Categoría Activa (visible para productos)</label>
         </div>
         
-        <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition w-full font-bold shadow-sm">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full">
             <i class="fas fa-save mr-2"></i> Actualizar Categoría
         </button>
     </form>

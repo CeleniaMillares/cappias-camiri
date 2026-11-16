@@ -6,7 +6,7 @@
         <h1 class="text-2xl font-bold text-gray-800">Gestión de Ferias</h1>
         <p class="text-gray-500 text-sm mt-1">Administra los eventos donde se realizan ventas o inscripciones.</p>
     </div>
-    <!-- 🔥 Enlace corregido a /crear (con "a") -->
+    <!-- Enlace a crear feria -->
     <a href="/admin/ferias/crear" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center gap-2">
         <i class="fas fa-plus"></i> Nueva Feria
     </a>
@@ -23,11 +23,11 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha del evento:</label>
             <input type="date" name="fecha" value="{{ request('fecha') }}" class="w-full border-gray-300 rounded-lg shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
         </div>
-        <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition font-semibold shadow-sm h-[42px]">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500 h-[42px]">
             <i class="fas fa-search mr-2"></i> Filtrar
         </button>
-        <a href="/admin/ferias" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-semibold shadow-sm h-[42px] flex items-center justify-center">
-            Limpiar
+        <a href="/admin/ferias" class="inline-flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600 h-[42px]">
+            <i class="fas fa-times mr-2" aria-hidden="true"></i> Limpiar
         </a>
     </form>
 </div>
@@ -67,13 +67,13 @@
                 </td>
                 <td class="p-4"><i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>{{ $feria->lugar }}</td>
                 <td class="p-4 flex gap-3 items-center">
-                    <!-- 🔥 Enlace corregido a /editar (con "a") -->
-                    <a href="/admin/ferias/{{ $feria->id_feria }}/editar" class="text-blue-600 hover:underline font-semibold">Editar</a>
+                    <!-- Enlace a editar feria -->
+                    <a href="/admin/ferias/{{ $feria->id_feria }}/editar" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 dark:hover:bg-blue-500"><i class="fas fa-edit" aria-hidden="true"></i> Editar</a>
                     
                     <form method="POST" action="/admin/ferias/{{ $feria->id_feria }}" onsubmit="return confirm('¿Estás seguro de eliminar esta feria?');">
                         @csrf 
                         @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:underline font-semibold">Eliminar</button>
+                        <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-red-700"><i class="fas fa-trash" aria-hidden="true"></i> Eliminar</button>
                     </form>
                 </td>
             </tr>

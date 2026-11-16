@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
-use App\Models\Curso;
-use App\Models\HorarioCurso;
 use App\Models\Producto;
 use App\Models\Rol;
 use App\Models\Usuario;
@@ -54,48 +52,4 @@ class WebWorkflowTest extends TestCase
         $this->assertSame(3, $product->fresh()->stock_actual);
     }
 
-    public function test_public_course_checkout_rejects_a_schedule_from_another_course(): void
-    {
-        $instructor = Usuario::create([
-            'nombre' => 'Instructor de prueba',
-            'correo' => 'instructor@example.test',
-            'contrasena_hash' => Hash::make('password'),
-            'activo' => true,
-        ]);
-        $course = Curso::create([
-            'id_usuario_instructor' => $instructor->id_usuario,
-            'nombre' => 'Curso solicitado',
-            'duracion' => '4 sesiones',
-            'costo' => 100,
-            'activo' => true,
-        ]);
-        $otherCourse = Curso::create([
-            'id_usuario_instructor' => $instructor->id_usuario,
-            'nombre' => 'Otro curso',
-            'duracion' => '4 sesiones',
-            'costo' => 100,
-            'activo' => true,
-        ]);
-        $schedule = HorarioCurso::create([
-            'id_curso' => $otherCourse->id_curso,
-            'dia_semana' => 'Sabado',
-            'hora_inicio' => '09:00',
-            'hora_fin' => '12:00',
-            'fecha_inicio' => now()->toDateString(),
-            'fecha_fin' => now()->addMonth()->toDateString(),
-            'cupo_maximo' => 10,
-        ]);
-
-        $this->post('/checkout/curso/'.$course->id_curso, [
-            'correo' => 'alumno@example.test',
-            'nombres' => 'Alumno de prueba',
-            'ci' => '12345678',
-            'telefono' => '70000000',
-            'id_horario_curso' => $schedule->id_horario_curso,
-            'metodo_pago' => 'QR',
-        ])->assertNotFound();
-
-        $this->assertDatabaseCount('inscripciones', 0);
-        $this->assertDatabaseCount('usuarios', 1);
-    }
 }

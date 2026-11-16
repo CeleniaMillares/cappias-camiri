@@ -112,7 +112,6 @@ class DemoDataSeeder extends Seeder
             'id_usuario_instructor' => $userSocio1->id_usuario,
             'nombre' => 'Taller de Cerámica Básica',
             'descripcion' => 'Aprende a moldear el barro desde cero.',
-            'duracion' => '4 sesiones',
             'costo' => 250.00,
             'imagen_url' => 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?q=80&w=600&auto=format&fit=crop',
             'activo' => true
@@ -186,6 +185,7 @@ class DemoDataSeeder extends Seeder
             'monto_bruto' => 500.00,
             'comision' => 25.00,
             'monto_neto' => 475.00,
+            'origen' => 'VENTAS',
             'metodo' => 'EFECTIVO',
             'estado' => 'PAGADA'
         ]);

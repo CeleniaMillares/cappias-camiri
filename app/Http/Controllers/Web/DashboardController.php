@@ -24,15 +24,7 @@ class DashboardController extends Controller
             return view('admin.dashboard_admin', compact('totalUsuarios', 'totalAuditorias', 'ultimasAcciones'));
         }
 
-        // 2. SI ES ALUMNO
-        if ($user->hasRole('Alumno')) {
-            $inscripciones = \App\Models\Inscripcion::with('horarioCurso.curso')->whereHas('alumno', function($q) use ($user) {
-                $q->where('nombres', 'LIKE', '%' . $user->nombre . '%'); 
-            })->get();
-            return view('admin.dashboard_alumno', compact('inscripciones'));
-        }
-
-        // 3. SI ES SOCIO/INSTRUCTOR
+        // 2. SI ES SOCIO/INSTRUCTOR
         if ($user->hasRole('Socio/Instructor')) {
             $productos = $user->productosComoSocio;
             $ventas = \App\Models\DetalleVenta::whereHas('producto', function($q) use ($user) {
@@ -41,7 +33,7 @@ class DashboardController extends Controller
             return view('admin.dashboard_socio', compact('productos', 'ventas'));
         }
 
-        // 4. SI ES DIRECTIVA (El Dashboard general con gráficos)
+        // 3. SI ES DIRECTIVA (El Dashboard general con gráficos)
         $estadosVentaPagada = ['PAGADA', 'LIQUIDADA'];
         $ventasHoy = Venta::whereDate('created_at', today())
             ->whereIn('estado', $estadosVentaPagada)

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Usuario;
 use App\Models\Venta;
+use App\Models\Inscripcion;
 use App\Models\PagoSocio;
 use App\Models\Parametro;
+use App\Support\InsensitiveSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -35,49 +37,21 @@ class PagoSocioController extends Controller
         // 1. Calculamos los saldos pendientes de cada socio (Deuda global, no se filtra por fecha)
         $socios = Usuario::whereHas('roles', fn($q) => $q->where('nombre', 'Socio/Instructor'))
             ->when($buscar, function($q) use ($buscar) {
-                $q->where('nombre', 'LIKE', '%' . $buscar . '%');
+                InsensitiveSearch::whereContains($q, 'nombre', $buscar);
             })->get();
-
-        $comisionPorc = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
-        $socioIds = $socios->pluck('id_usuario');
-        $brutosPorSocio = [];
-        $pagadoPorSocio = [];
-
-        if ($socioIds->isNotEmpty()) {
-            $ventas = Venta::where('estado', 'PAGADA')
-                ->whereHas('detalles.producto', fn($q) => $q->whereIn('id_usuario_socio', $socioIds))
-                ->with(['detalles.producto'])
-                ->get();
-
-            foreach ($ventas as $venta) {
-                foreach ($venta->detalles as $detalle) {
-                    $idSocio = $detalle->producto->id_usuario_socio;
-                    if ($socioIds->contains($idSocio)) {
-                        $brutosPorSocio[$idSocio] = ($brutosPorSocio[$idSocio] ?? 0) + (float) $detalle->subtotal;
-                    }
-                }
-            }
-
-            $pagadoPorSocio = PagoSocio::whereIn('id_usuario_socio', $socioIds)
-                ->where('estado', 'PAGADA')
-                ->selectRaw('id_usuario_socio, SUM(monto_neto) as total_pagado')
-                ->groupBy('id_usuario_socio')
-                ->pluck('total_pagado', 'id_usuario_socio')
-                ->all();
-        }
 
         $saldos = [];
         foreach ($socios as $socio) {
-            $bruto = (float) ($brutosPorSocio[$socio->id_usuario] ?? 0);
-            $netoGenerado = round($bruto - ($bruto * $comisionPorc / 100), 2);
-            $netoPagado = (float) ($pagadoPorSocio[$socio->id_usuario] ?? 0);
-            $saldo = round($netoGenerado - $netoPagado, 2);
+            $ingresos = $this->calcularIngresosSocio($socio->id_usuario);
+            $saldo = $ingresos['saldo_pendiente'];
 
             // Solo mostramos al socio si se le debe dinero (saldo > 0.01)
             if ($saldo > 0) {
                 $saldos[] = [
                     'socio' => $socio,
-                    'saldo' => $saldo
+                    'saldo' => $saldo,
+                    'ventas_saldo' => $ingresos['ventas_saldo'],
+                    'cursos_saldo' => $ingresos['cursos_saldo'],
                 ];
             }
         }
@@ -87,7 +61,7 @@ class PagoSocioController extends Controller
             ->whereIn('estado', ['PAGADA', 'ANULADA'])
             ->when($buscar, function($q) use ($buscar) {
                 $q->whereHas('socio', function($q2) use ($buscar) {
-                    $q2->where('nombre', 'LIKE', '%' . $buscar . '%');
+                    InsensitiveSearch::whereContains($q2, 'nombre', $buscar);
                 });
             })
             ->when($fechaInicio, function($q) use ($fechaInicio) {
@@ -105,31 +79,37 @@ class PagoSocioController extends Controller
     // 2. Formulario para registrar un pago (total o parcial)
     public function create($id_usuario_socio) {
         $socio = Usuario::findOrFail($id_usuario_socio);
-        
-        // Obtenemos las ventas pagadas que incluyen productos del socio
-        $ventas = Venta::where('estado', 'PAGADA')
-            ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $id_usuario_socio))
-            ->with(['detalles.producto'])->get();
+        $ingresos = $this->calcularIngresosSocio($id_usuario_socio);
+        $saldoPendiente = $ingresos['saldo_pendiente'];
+        $ventas = $ingresos['ventas'];
+        $inscripciones = $ingresos['inscripciones'];
+        $bruto = $ingresos['ventas_bruto'];
+        $brutoCursos = $ingresos['cursos_bruto'];
+        $comisionVentas = $ingresos['ventas_comision'];
+        $comisionCursos = $ingresos['cursos_comision'];
+        $brutoTotal = $ingresos['bruto_total'];
+        $comisionTotal = $ingresos['comision_total'];
+        $netoGenerado = $ingresos['neto_generado'];
+        $comisionPorc = $ingresos['comision_venta'];
+        $comisionCursoPorc = $ingresos['comision_curso'];
+        $montoPagado = $ingresos['neto_pagado'];
 
-        $bruto = 0;
-        foreach ($ventas as $v) {
-            foreach ($v->detalles as $d) {
-                if ($d->producto->id_usuario_socio == $id_usuario_socio) {
-                    $bruto += $d->subtotal;
-                }
-            }
-        }
-
-        $comisionPorc = Parametro::where('clave', 'comision_venta')->value('valor') ?? 5;
-        $netoGenerado = $bruto - ($bruto * $comisionPorc / 100);
-        
-        $netoPagado = PagoSocio::where('id_usuario_socio', $id_usuario_socio)
-            ->where('estado', 'PAGADA')
-            ->sum('monto_neto');
-
-        $saldoPendiente = round($netoGenerado - $netoPagado, 2);
-
-        return view('admin.pagos_socios.create', compact('socio', 'saldoPendiente', 'ventas', 'bruto', 'comisionPorc', 'netoGenerado'));
+        return view('admin.pagos_socios.create', compact(
+            'socio',
+            'saldoPendiente',
+            'ventas',
+            'inscripciones',
+            'bruto',
+            'brutoCursos',
+            'comisionVentas',
+            'comisionCursos',
+            'brutoTotal',
+            'comisionTotal',
+            'comisionPorc',
+            'comisionCursoPorc',
+            'netoGenerado',
+            'montoPagado'
+        ));
     }
 
     // 3. Guardar el pago (parcial o total)
@@ -141,31 +121,8 @@ class PagoSocioController extends Controller
 
         $resultado = DB::transaction(function () use ($request, $id_usuario_socio) {
             $socio = Usuario::whereKey($id_usuario_socio)->lockForUpdate()->firstOrFail();
-            $ventas = Venta::where('estado', 'PAGADA')
-                ->whereHas('detalles.producto', fn($q) => $q->where('id_usuario_socio', $socio->id_usuario))
-                ->with(['detalles.producto'])
-                ->lockForUpdate()
-                ->get();
-
-            $bruto = 0;
-            foreach ($ventas as $venta) {
-                foreach ($venta->detalles as $detalle) {
-                    if ($detalle->producto->id_usuario_socio === $socio->id_usuario) {
-                        $bruto += (float) $detalle->subtotal;
-                    }
-                }
-            }
-
-            $comisionPorc = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
-            if ($comisionPorc < 0 || $comisionPorc >= 100) {
-                throw new \LogicException('El porcentaje de comisión de ventas debe ser mayor o igual a 0 y menor a 100.');
-            }
-
-            $netoGenerado = round($bruto - ($bruto * $comisionPorc / 100), 2);
-            $netoPagado = (float) PagoSocio::where('id_usuario_socio', $socio->id_usuario)
-                ->where('estado', 'PAGADA')
-                ->sum('monto_neto');
-            $saldoPendiente = round($netoGenerado - $netoPagado, 2);
+            $ingresos = $this->calcularIngresosSocio($socio->id_usuario, true);
+            $saldoPendiente = $ingresos['saldo_pendiente'];
             $montoNetoAbono = round((float) $request->monto_pagar, 2);
 
             if ($montoNetoAbono > $saldoPendiente) {
@@ -176,8 +133,35 @@ class PagoSocioController extends Controller
                 return ['saldo' => $saldoPendiente];
             }
 
-            $montoBrutoAbono = round($montoNetoAbono / (1 - ($comisionPorc / 100)), 2);
+            if ($saldoPendiente <= 0) {
+                return ['saldo' => $saldoPendiente];
+            }
+
+            $netoVentasAbonado = $ingresos['ventas_saldo'] > 0
+                ? min(
+                    $ingresos['ventas_saldo'],
+                    round($montoNetoAbono * $ingresos['ventas_saldo'] / $saldoPendiente, 2)
+                )
+                : 0;
+            $netoCursosAbonado = round($montoNetoAbono - $netoVentasAbonado, 2);
+            if ($netoCursosAbonado > $ingresos['cursos_saldo']) {
+                $netoCursosAbonado = $ingresos['cursos_saldo'];
+                $netoVentasAbonado = round($montoNetoAbono - $netoCursosAbonado, 2);
+            }
+
+            $montoBrutoVentas = $netoVentasAbonado > 0 && $ingresos['ventas_saldo'] > 0
+                ? round($netoVentasAbonado * $ingresos['ventas_bruto_saldo'] / $ingresos['ventas_saldo'], 2)
+                : 0;
+            $comisionVentasAbono = round($montoBrutoVentas - $netoVentasAbonado, 2);
+            $montoBrutoCursos = $netoCursosAbonado > 0 && $ingresos['cursos_saldo'] > 0
+                ? round($netoCursosAbonado * $ingresos['cursos_bruto_saldo'] / $ingresos['cursos_saldo'], 2)
+                : 0;
+            $comisionCursosAbono = round($montoBrutoCursos - $netoCursosAbonado, 2);
+            $montoBrutoAbono = round($montoBrutoVentas + $montoBrutoCursos, 2);
             $comisionAbono = round($montoBrutoAbono - $montoNetoAbono, 2);
+            $origen = $netoVentasAbonado > 0 && $netoCursosAbonado > 0
+                ? 'MIXTO'
+                : ($netoVentasAbonado > 0 ? 'VENTAS' : 'CURSOS');
 
             PagoSocio::create([
                 'id_usuario_socio' => $socio->id_usuario,
@@ -186,6 +170,11 @@ class PagoSocioController extends Controller
                 'monto_bruto' => $montoBrutoAbono,
                 'comision' => $comisionAbono,
                 'monto_neto' => $montoNetoAbono,
+                'origen' => $origen,
+                'monto_bruto_ventas' => $montoBrutoVentas,
+                'comision_ventas' => $comisionVentasAbono,
+                'monto_bruto_cursos' => $montoBrutoCursos,
+                'comision_cursos' => $comisionCursosAbono,
                 'metodo' => $request->metodo,
                 'estado' => 'PAGADA',
             ]);
@@ -201,6 +190,118 @@ class PagoSocioController extends Controller
         }
 
         return redirect('/admin/pagos-socios')->with('success', 'Pago registrado correctamente.');
+    }
+
+    private function calcularIngresosSocio(string $idUsuarioSocio, bool $bloquearFilas = false): array
+    {
+        $comisionVenta = (float) (Parametro::where('clave', 'comision_venta')->value('valor') ?? 5);
+        $comisionCurso = (float) (Parametro::where('clave', 'comision_curso')->value('valor') ?? 20);
+
+        $ventasQuery = Venta::where('estado', 'PAGADA')
+            ->whereHas('detalles.producto', fn($query) => $query->where('id_usuario_socio', $idUsuarioSocio))
+            ->with('detalles.producto');
+        if ($bloquearFilas) {
+            $ventasQuery->lockForUpdate();
+        }
+        $ventas = $ventasQuery->get();
+
+        $ventasBruto = 0;
+        foreach ($ventas as $venta) {
+            foreach ($venta->detalles as $detalle) {
+                if ((string) $detalle->producto->id_usuario_socio === (string) $idUsuarioSocio) {
+                    $ventasBruto += (float) $detalle->subtotal;
+                }
+            }
+        }
+        $ventasBruto = round($ventasBruto, 2);
+        $ventasComision = round($ventasBruto * $comisionVenta / 100, 2);
+        $ventasNetas = max(0, round($ventasBruto - $ventasComision, 2));
+
+        $inscripcionesQuery = Inscripcion::where('estado', 'CONFIRMADA')
+            ->whereHas('horarioCurso.curso', fn($query) => $query->where('id_usuario_instructor', $idUsuarioSocio))
+            ->with([
+                'alumno',
+                'horarioCurso.curso',
+                'pagos' => fn($query) => $query->where('estado', 'CONFIRMADO'),
+            ]);
+        if ($bloquearFilas) {
+            $inscripcionesQuery->lockForUpdate();
+        }
+        $inscripciones = $inscripcionesQuery->get();
+
+        $cursosBruto = 0;
+        $cursosComision = 0;
+        foreach ($inscripciones as $inscripcion) {
+            $cursosBruto += (float) $inscripcion->pagos->sum('monto');
+            $comisionInscripcion = $inscripcion->comision_calculada
+                ? (float) $inscripcion->comision_cappias
+                : round((float) $inscripcion->horarioCurso->curso->costo * $comisionCurso / 100, 2);
+            $cursosComision += $comisionInscripcion;
+        }
+        $cursosBruto = round($cursosBruto, 2);
+        $cursosComision = round($cursosComision, 2);
+        $cursosNetos = max(0, round($cursosBruto - $cursosComision, 2));
+
+        $brutoTotal = round($ventasBruto + $cursosBruto, 2);
+        $comisionTotal = round($ventasComision + $cursosComision, 2);
+        $netoGenerado = max(0, round($ventasNetas + $cursosNetos, 2));
+        $pagosQuery = PagoSocio::where('id_usuario_socio', $idUsuarioSocio)
+            ->where('estado', 'PAGADA');
+        if ($bloquearFilas) {
+            $pagosQuery->lockForUpdate();
+        }
+        $pagos = $pagosQuery->get([
+            'monto_bruto',
+            'comision',
+            'monto_neto',
+            'monto_bruto_ventas',
+            'comision_ventas',
+            'monto_bruto_cursos',
+            'comision_cursos',
+        ]);
+
+        $ventasBrutoPagado = 0;
+        $ventasComisionPagada = 0;
+        $cursosBrutoPagado = 0;
+        $cursosComisionPagada = 0;
+        $netoPagado = 0;
+        foreach ($pagos as $pago) {
+            $ventasBrutoPagado += (float) ($pago->monto_bruto_ventas ?? $pago->monto_bruto);
+            $ventasComisionPagada += (float) ($pago->comision_ventas ?? $pago->comision);
+            $cursosBrutoPagado += (float) ($pago->monto_bruto_cursos ?? 0);
+            $cursosComisionPagada += (float) ($pago->comision_cursos ?? 0);
+            $netoPagado += (float) $pago->monto_neto;
+        }
+
+        $ventasNetasPagadas = round($ventasBrutoPagado - $ventasComisionPagada, 2);
+        $cursosNetosPagados = round($cursosBrutoPagado - $cursosComisionPagada, 2);
+        $ventasSaldo = max(0, round($ventasNetas - $ventasNetasPagadas, 2));
+        $cursosSaldo = max(0, round($cursosNetos - $cursosNetosPagados, 2));
+        $ventasBrutoSaldo = max(0, round($ventasBruto - $ventasBrutoPagado, 2));
+        $cursosBrutoSaldo = max(0, round($cursosBruto - $cursosBrutoPagado, 2));
+        $saldoPendiente = round($ventasSaldo + $cursosSaldo, 2);
+
+        return [
+            'ventas' => $ventas,
+            'inscripciones' => $inscripciones,
+            'ventas_bruto' => $ventasBruto,
+            'ventas_comision' => $ventasComision,
+            'ventas_netas' => $ventasNetas,
+            'cursos_bruto' => $cursosBruto,
+            'cursos_comision' => $cursosComision,
+            'cursos_netos' => $cursosNetos,
+            'bruto_total' => $brutoTotal,
+            'comision_total' => $comisionTotal,
+            'neto_generado' => $netoGenerado,
+            'neto_pagado' => round($netoPagado, 2),
+            'ventas_saldo' => $ventasSaldo,
+            'cursos_saldo' => $cursosSaldo,
+            'ventas_bruto_saldo' => $ventasBrutoSaldo,
+            'cursos_bruto_saldo' => $cursosBrutoSaldo,
+            'saldo_pendiente' => $saldoPendiente,
+            'comision_venta' => $comisionVenta,
+            'comision_curso' => $comisionCurso,
+        ];
     }
 
     public function anular($id) {

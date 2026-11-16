@@ -55,6 +55,11 @@
                             <span class="text-xs {{ $pago->estado === 'CONFIRMADO' ? 'text-green-700' : 'text-yellow-700' }}">
                                 ({{ $pago->estado === 'CONFIRMADO' ? 'Verificado' : 'Pendiente de verificación' }})
                             </span>
+                            @if($pago->comprobante_url)
+                                <a href="{{ asset('storage/' . $pago->comprobante_url) }}" target="_blank" rel="noopener noreferrer" class="ml-2 inline-flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700">
+                                    <i class="fas fa-image" aria-hidden="true"></i> Comprobante
+                                </a>
+                            @endif
                         </div>
                     @empty
                         <span class="text-xs text-gray-400">Sin pago registrado</span>
@@ -66,7 +71,7 @@
                     @if($ins->estado == 'PENDIENTE_PAGO')
                         <form method="POST" action="/admin/inscripciones/{{ $ins->id_inscripcion }}/confirmar" onsubmit="return confirm('¿Confirmas que el pago ya fue recibido? Se calculará la comisión del 20%.');">
                             @csrf
-                            <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
+                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500">
                                 <i class="fas fa-check-circle mr-1"></i> Confirmar Pago
                             </button>
                         </form>

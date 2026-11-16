@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-xl mx-auto">
     <div class="mb-6">
-        <a href="/admin/socios" class="text-blue-600 hover:underline text-sm mb-2 inline-block"><i class="fas fa-arrow-left mr-1"></i> Volver</a>
+        <a href="/admin/socios" class="mb-2 inline-flex items-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-gray-300 dark:hover:bg-gray-600"><i class="fas fa-arrow-left mr-2" aria-hidden="true"></i> Volver</a>
         <h1 class="text-2xl font-bold text-gray-800">Inscribir Nuevo Socio</h1>
     </div>
 
@@ -26,11 +26,11 @@
             </div>
             <div>
                 <label class="block mb-1 font-semibold">CI:</label>
-                <input type="text" name="ci" value="{{ old('ci') }}" class="w-full border p-2 rounded" required>
+                <input type="text" name="ci" value="{{ old('ci') }}" class="w-full border p-2 rounded" required minlength="6" maxlength="13" pattern="[0-9]{6,10}(-[A-Za-z0-9]{1,2})?">
             </div>
             <div>
                 <label class="block mb-1 font-semibold">Teléfono:</label>
-                <input type="text" name="telefono" value="{{ old('telefono') }}" class="w-full border p-2 rounded" required>
+                <input type="text" name="telefono" value="{{ old('telefono') }}" class="w-full border p-2 rounded" required inputmode="numeric" minlength="7" maxlength="8" pattern="[0-9]{7,8}">
             </div>
             <div class="col-span-2">
                 <label class="block mb-1 font-semibold">Dirección (Opcional):</label>
@@ -97,7 +97,7 @@
             </div>
         </div>
         
-        <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 w-full font-bold mt-2">Inscribir Socio</button>
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors duration-200 hover:bg-green-700 dark:hover:bg-green-500 w-full mt-2"><i class="fas fa-user-plus mr-2" aria-hidden="true"></i> Inscribir Socio</button>
     </form>
 </div>
 

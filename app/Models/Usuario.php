@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable; 
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Concerns\HasTitleCase;
 
 class Usuario extends Authenticatable
 {
-    use HasApiTokens, HasUuids, SoftDeletes, Notifiable;
+    use HasApiTokens, HasUuids, SoftDeletes, Notifiable, HasTitleCase;
     
     protected $table = 'usuarios';
     protected $primaryKey = 'id_usuario';
@@ -20,6 +21,11 @@ class Usuario extends Authenticatable
     // 🔥 QUITAMOS 'fecha_inscripcion' de aquí. Solo dejamos los datos de login.
     protected $fillable = ['nombre', 'correo', 'contrasena_hash', 'activo'];
     protected $hidden = ['contrasena_hash'];
+
+    protected function titleCaseAttributes(): array
+    {
+        return ['nombre'];
+    }
 
     public function getAuthPassword()
     {
@@ -56,10 +62,6 @@ class Usuario extends Authenticatable
     
     public function cursosComoInstructor() {
         return $this->hasMany(Curso::class, 'id_usuario_instructor', 'id_usuario');
-    }
-
-    public function alumno() {
-        return $this->hasOne(Alumno::class, 'id_usuario', 'id_usuario');
     }
 
     // 🔥 RELACIÓN ÚNICA CON SOCIO (Eliminamos la duplicada)
